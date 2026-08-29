@@ -51,22 +51,6 @@ app.get("/health", (_req, res) => {
       status: "UP",
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
-      environment: env.NODE_ENV,
-      version: "1.0.0",
-      routes: [
-        "/api/v1/auth",
-        "/api/v1/users",
-        "/api/v1/pages",
-        "/api/v1/tasks",
-        "/api/v1/calendar",
-        "/api/v1/habits",
-        "/api/v1/journal",
-        "/api/v1/goals",
-        "/api/v1/finance",
-        "/api/v1/notes",
-        "/api/v1/bookmarks",
-        "/api/v1/analytics",
-      ],
     },
   });
 });
