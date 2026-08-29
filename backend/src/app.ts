@@ -34,7 +34,7 @@ app.use(
 
       const allowed = [
         env.FRONTEND_URL,
-        "https://trymonkmode.vercel.app",
+        "https://trymonkmode.ashishpal.dev",
         "https://trymonkmode.in",
         "https://www.trymonkmode.in",
         "http://localhost:3000",
