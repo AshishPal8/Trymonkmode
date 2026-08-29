@@ -1,13 +1,9 @@
-import { z } from 'zod';
-
-// ==========================================
-// Zod Validation DTO Schemas (Bookmarks Module)
-// ==========================================
+import { z } from "zod";
 
 export const createBookmarkSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(255),
-  url: z.string().url('Must be a valid URL'),
-  category: z.string().default('GitHub'),
+  title: z.string().min(1, "Title is required").max(255),
+  url: z.string().url("Must be a valid URL"),
+  category: z.string().default("GitHub"),
   description: z.string().optional(),
   tags: z.array(z.string()).default([]),
   isPinned: z.boolean().default(false),

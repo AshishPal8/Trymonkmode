@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { AuthModal } from '../auth/AuthModal';
-import { LandingNavbar } from './LandingNavbar';
-import { LandingHero } from './LandingHero';
-import { LandingTasks } from './LandingTasks';
-import { LandingJournal } from './LandingJournal';
-import { LandingFinance } from './LandingFinance';
-import { LandingFooter } from './LandingFooter';
+import React, { useState } from "react";
+import { AuthModal } from "../auth/AuthModal";
+import { LandingNavbar } from "./LandingNavbar";
+import { LandingHero } from "./LandingHero";
+import { LandingTasks } from "./LandingTasks";
+import { LandingJournal } from "./LandingJournal";
+import { LandingFinance } from "./LandingFinance";
+import { LandingFooter } from "./LandingFooter";
 
 export function LandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
 
-  const openAuth = (mode: 'login' | 'signup') => {
+  const openAuth = (mode: "login" | "signup") => {
     setAuthMode(mode);
     setShowAuthModal(true);
   };

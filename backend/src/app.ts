@@ -8,7 +8,6 @@ import { NotFoundError } from "./utils/errors.js";
 import { sendResponse } from "./utils/apiResponse.js";
 import { HttpStatus } from "./utils/httpStatus.js";
 
-// Feature Route Imports
 import { authRoutes } from "./modules/auth/auth.route.js";
 import { googleCallback, googleLogin } from "./modules/auth/auth.controller.js";
 import { userRoutes } from "./modules/user/user.route.js";
@@ -25,7 +24,6 @@ import { analyticsRoutes } from "./modules/analytics/analytics.route.js";
 
 export const app = express();
 
-// 1. Core Middlewares
 app.use(
   cors({
     origin: [
@@ -44,7 +42,6 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
-// 2. Health Check
 app.get("/health", (_req, res) => {
   return sendResponse({
     res,
@@ -74,11 +71,9 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// Google OAuth Top-Level Direct Endpoints
 app.get("/api/google", googleLogin);
 app.get("/api/google/callback", googleCallback);
 
-// 3. API Version 1 Route Registry
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/pages", pagesRoutes);
@@ -92,10 +87,8 @@ app.use("/api/v1/notes", notesRoutes);
 app.use("/api/v1/bookmarks", bookmarkRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 
-// 4. 404 Catch-All Handler
 app.use((_req, _res, next) => {
   next(new NotFoundError("The requested endpoint or resource does not exist."));
 });
 
-// 5. Global Centralized Error Handler
 app.use(errorHandler);

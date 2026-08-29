@@ -1,10 +1,9 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
-import { db } from '../../config/db.js';
-import { journalEntries, dailyPrompts, users } from '../../db/schema.js';
-import { NotFoundError } from '../../utils/errors.js';
-import type { CreateJournalInput } from './journal.schema.js';
+import { eq, and, desc, sql } from "drizzle-orm";
+import { db } from "../../config/db.js";
+import { journalEntries, dailyPrompts, users } from "../../db/schema.js";
+import { NotFoundError } from "../../utils/errors.js";
+import type { CreateJournalInput } from "./journal.schema.js";
 
-// 1. Get all journal entries for user
 export async function getEntriesService(userId: number) {
   return db
     .select()
@@ -13,19 +12,22 @@ export async function getEntriesService(userId: number) {
     .orderBy(desc(journalEntries.date));
 }
 
-// 2. Get entry by specific date
 export async function getEntryByDateService(userId: number, dateStr: string) {
   const [entry] = await db
     .select()
     .from(journalEntries)
-    .where(and(eq(journalEntries.userId, userId), eq(journalEntries.date, dateStr)))
+    .where(
+      and(eq(journalEntries.userId, userId), eq(journalEntries.date, dateStr)),
+    )
     .limit(1);
 
   return entry || null;
 }
 
-// 3. Upsert journal entry (Create or Update) + Award +40 XP
-export async function upsertEntryService(userId: number, input: CreateJournalInput) {
+export async function upsertEntryService(
+  userId: number,
+  input: CreateJournalInput,
+) {
   const existing = await getEntryByDateService(userId, input.date);
 
   if (existing) {
@@ -72,7 +74,6 @@ export async function upsertEntryService(userId: number, input: CreateJournalInp
     })
     .returning();
 
-  // Award +40 XP to user
   await db
     .update(users)
     .set({ xp: sql`${users.xp} + 40` })
@@ -81,22 +82,25 @@ export async function upsertEntryService(userId: number, input: CreateJournalInp
   return { entry: created, isNew: true, xpGained: 40 };
 }
 
-// 4. Delete entry
 export async function deleteEntryService(userId: number, entryId: number) {
   const [deleted] = await db
     .delete(journalEntries)
-    .where(and(eq(journalEntries.id, entryId), eq(journalEntries.userId, userId)))
+    .where(
+      and(eq(journalEntries.id, entryId), eq(journalEntries.userId, userId)),
+    )
     .returning();
 
   if (!deleted) {
-    throw new NotFoundError('Journal entry not found or already removed.');
+    throw new NotFoundError("Journal entry not found or already removed.");
   }
 
-  return { message: 'Journal entry deleted successfully.' };
+  return { message: "Journal entry deleted successfully." };
 }
 
-// 5. Get Daily Prompt from 1000+ Curated Bank (Zero LLM Token Cost!)
-export async function getDailyPromptService(category?: string, shuffle?: boolean) {
+export async function getDailyPromptService(
+  category?: string,
+  shuffle?: boolean,
+) {
   if (shuffle) {
     const [randomPrompt] = await db
       .select()
@@ -105,18 +109,29 @@ export async function getDailyPromptService(category?: string, shuffle?: boolean
       .orderBy(sql`RANDOM()`)
       .limit(1);
 
-    return randomPrompt || { prompt: 'What is one hard truth you embraced today that made you wiser?', category: 'Stoic Growth' };
+    return (
+      randomPrompt || {
+        prompt:
+          "What is one hard truth you embraced today that made you wiser?",
+        category: "Stoic Growth",
+      }
+    );
   }
 
-  // Default: Deterministic Daily Prompt by day of year (all users receive matching prompt of the day)
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
+      (1000 * 60 * 60 * 24),
+  );
   const allPrompts = await db
     .select()
     .from(dailyPrompts)
     .where(eq(dailyPrompts.isActive, true));
 
   if (allPrompts.length === 0) {
-    return { prompt: 'What is one hard truth you embraced today that made you wiser?', category: 'Stoic Growth' };
+    return {
+      prompt: "What is one hard truth you embraced today that made you wiser?",
+      category: "Stoic Growth",
+    };
   }
 
   const index = dayOfYear % allPrompts.length;

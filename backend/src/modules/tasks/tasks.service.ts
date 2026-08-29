@@ -1,11 +1,13 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
-import { db } from '../../config/db.js';
-import { tasks, users } from '../../db/schema.js';
-import { NotFoundError } from '../../utils/errors.js';
-import type { CreateTaskInput, UpdateTaskInput } from './tasks.schema.js';
+import { eq, and, desc, sql } from "drizzle-orm";
+import { db } from "../../config/db.js";
+import { tasks, users } from "../../db/schema.js";
+import { NotFoundError } from "../../utils/errors.js";
+import type { CreateTaskInput, UpdateTaskInput } from "./tasks.schema.js";
 
-// 1. Get all tasks for user
-export async function getTasksService(userId: number, filters?: { dueDate?: string; completed?: boolean; priority?: string }) {
+export async function getTasksService(
+  userId: number,
+  filters?: { dueDate?: string; completed?: boolean; priority?: string },
+) {
   const conditions = [eq(tasks.userId, userId)];
 
   if (filters?.dueDate) {
@@ -25,8 +27,10 @@ export async function getTasksService(userId: number, filters?: { dueDate?: stri
     .orderBy(desc(tasks.createdAt));
 }
 
-// 2. Create new task
-export async function createTaskService(userId: number, input: CreateTaskInput) {
+export async function createTaskService(
+  userId: number,
+  input: CreateTaskInput,
+) {
   const [created] = await db
     .insert(tasks)
     .values({
@@ -44,7 +48,6 @@ export async function createTaskService(userId: number, input: CreateTaskInput) 
     })
     .returning();
 
-  // Award +10 XP for planning a task
   await db
     .update(users)
     .set({ xp: sql`${users.xp} + 10` })
@@ -53,8 +56,11 @@ export async function createTaskService(userId: number, input: CreateTaskInput) 
   return created;
 }
 
-// 3. Update task
-export async function updateTaskService(userId: number, taskId: number, input: UpdateTaskInput) {
+export async function updateTaskService(
+  userId: number,
+  taskId: number,
+  input: UpdateTaskInput,
+) {
   const [updated] = await db
     .update(tasks)
     .set({
@@ -65,13 +71,12 @@ export async function updateTaskService(userId: number, taskId: number, input: U
     .returning();
 
   if (!updated) {
-    throw new NotFoundError('Task not found.');
+    throw new NotFoundError("Task not found.");
   }
 
   return updated;
 }
 
-// 4. Fast 1-click toggle completed + Award +25 XP
 export async function toggleTaskService(userId: number, taskId: number) {
   const [existing] = await db
     .select()
@@ -80,7 +85,7 @@ export async function toggleTaskService(userId: number, taskId: number) {
     .limit(1);
 
   if (!existing) {
-    throw new NotFoundError('Task not found.');
+    throw new NotFoundError("Task not found.");
   }
 
   const nextCompleted = !existing.completed;
@@ -94,7 +99,6 @@ export async function toggleTaskService(userId: number, taskId: number) {
     .returning();
 
   if (nextCompleted) {
-    // Award +25 XP on completing task
     await db
       .update(users)
       .set({ xp: sql`${users.xp} + 25` })
@@ -104,7 +108,6 @@ export async function toggleTaskService(userId: number, taskId: number) {
   return { task: updated, xpGained: nextCompleted ? 25 : 0 };
 }
 
-// 5. Delete task
 export async function deleteTaskService(userId: number, taskId: number) {
   const [deleted] = await db
     .delete(tasks)
@@ -112,8 +115,8 @@ export async function deleteTaskService(userId: number, taskId: number) {
     .returning();
 
   if (!deleted) {
-    throw new NotFoundError('Task not found or already deleted.');
+    throw new NotFoundError("Task not found or already deleted.");
   }
 
-  return { message: 'Task deleted successfully.' };
+  return { message: "Task deleted successfully." };
 }

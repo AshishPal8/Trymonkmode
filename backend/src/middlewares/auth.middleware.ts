@@ -25,7 +25,6 @@ export async function authenticate(
   next: NextFunction,
 ) {
   try {
-    // 1. Dual Authentication: Check HTTP-Only Cookie FIRST (for Web), then Authorization Bearer Header (for App/API)
     let token: string | undefined = req.cookies?.access_token;
 
     if (!token) {

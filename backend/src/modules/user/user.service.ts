@@ -1,20 +1,30 @@
-import { eq, desc } from 'drizzle-orm';
-import { db } from '../../config/db.js';
-import { users, userSettings, userPlans, userFavorites } from '../../db/schema.js';
-import { NotFoundError } from '../../utils/errors.js';
-import { getFullUserProfile } from '../auth/auth.service.js';
-import type { UpdateProfileInput, UpdateUserRoleTierInput } from './user.schema.js';
+import { eq, desc } from "drizzle-orm";
+import { db } from "../../config/db.js";
+import {
+  users,
+  userSettings,
+  userPlans,
+  userFavorites,
+} from "../../db/schema.js";
+import { NotFoundError } from "../../utils/errors.js";
+import { getFullUserProfile } from "../auth/auth.service.js";
+import type {
+  UpdateProfileInput,
+  UpdateUserRoleTierInput,
+} from "./user.schema.js";
 
 export async function getProfileService(userId: number) {
   const profile = await getFullUserProfile(userId);
   if (!profile) {
-    throw new NotFoundError('User not found.');
+    throw new NotFoundError("User not found.");
   }
   return profile;
 }
 
-export async function updateProfileService(userId: number, input: UpdateProfileInput) {
-  // 1. Update Core `users` Table
+export async function updateProfileService(
+  userId: number,
+  input: UpdateProfileInput,
+) {
   const userUpdates: any = {};
   if (input.name !== undefined) userUpdates.name = input.name;
   if (input.avatar !== undefined) userUpdates.avatar = input.avatar;
@@ -26,25 +36,27 @@ export async function updateProfileService(userId: number, input: UpdateProfileI
     await db.update(users).set(userUpdates).where(eq(users.id, userId));
   }
 
-  // 2. Update `user_settings` Table
   const settingsUpdates: any = {};
   if (input.theme !== undefined) settingsUpdates.theme = input.theme;
   if (input.timezone !== undefined) settingsUpdates.timezone = input.timezone;
-  if (input.notificationsEnabled !== undefined) settingsUpdates.notificationsEnabled = input.notificationsEnabled;
-  if (input.emailNotifications !== undefined) settingsUpdates.emailNotifications = input.emailNotifications;
-  if (input.soundEffects !== undefined) settingsUpdates.soundEffects = input.soundEffects;
+  if (input.notificationsEnabled !== undefined)
+    settingsUpdates.notificationsEnabled = input.notificationsEnabled;
+  if (input.emailNotifications !== undefined)
+    settingsUpdates.emailNotifications = input.emailNotifications;
+  if (input.soundEffects !== undefined)
+    settingsUpdates.soundEffects = input.soundEffects;
 
   if (Object.keys(settingsUpdates).length > 0) {
     settingsUpdates.updatedAt = new Date();
-    await db.update(userSettings).set(settingsUpdates).where(eq(userSettings.userId, userId));
+    await db
+      .update(userSettings)
+      .set(settingsUpdates)
+      .where(eq(userSettings.userId, userId));
   }
 
-  // 3. Update `user_favorites` Table (Relational Sync)
   if (input.favorites !== undefined && Array.isArray(input.favorites)) {
-    // Delete existing favorites
     await db.delete(userFavorites).where(eq(userFavorites.userId, userId));
 
-    // Insert new favorites
     for (let i = 0; i < input.favorites.length; i++) {
       await db.insert(userFavorites).values({
         userId,
@@ -58,28 +70,35 @@ export async function updateProfileService(userId: number, input: UpdateProfileI
   return getFullUserProfile(userId);
 }
 
-// Superadmin: Get All Users
 export async function getAllUsersService() {
   const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
-  const fullProfiles = await Promise.all(allUsers.map(u => getFullUserProfile(u.id)));
+  const fullProfiles = await Promise.all(
+    allUsers.map((u) => getFullUserProfile(u.id)),
+  );
   return fullProfiles.filter(Boolean);
 }
 
-// Superadmin: Update User Role & Tier
-export async function updateUserRoleTierService(targetUserId: number, input: UpdateUserRoleTierInput) {
-  // Update Role in `users`
+export async function updateUserRoleTierService(
+  targetUserId: number,
+  input: UpdateUserRoleTierInput,
+) {
   if (input.role !== undefined) {
-    await db.update(users).set({ role: input.role, updatedAt: new Date() }).where(eq(users.id, targetUserId));
+    await db
+      .update(users)
+      .set({ role: input.role, updatedAt: new Date() })
+      .where(eq(users.id, targetUserId));
   }
 
-  // Update Tier in `user_plans`
   const planUpdates: any = {};
   if (input.planTier !== undefined) planUpdates.planTier = input.planTier;
   if (input.planStatus !== undefined) planUpdates.planStatus = input.planStatus;
 
   if (Object.keys(planUpdates).length > 0) {
     planUpdates.updatedAt = new Date();
-    await db.update(userPlans).set(planUpdates).where(eq(userPlans.userId, targetUserId));
+    await db
+      .update(userPlans)
+      .set(planUpdates)
+      .where(eq(userPlans.userId, targetUserId));
   }
 
   return getFullUserProfile(targetUserId);

@@ -25,8 +25,10 @@ const kalam = Kalam({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://trymonkmode.in"),
   title: "TryMonkMode | The Operating System for Deep Work & Daily Habits",
-  description: "Master deep work, atomic habits, task sprint matrix, and financial clarity with TryMonkMode.",
+  description:
+    "Master deep work, atomic habits, task sprint matrix, and financial clarity with TryMonkMode.",
   icons: {
     icon: "/icon.png",
     shortcut: "/icon.png",
@@ -34,11 +36,27 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "TryMonkMode — High-Velocity Productivity & Deep Work",
-    description: "The all-in-one liquid glass operating system for deep focus sprints, atomic habit streaks, priority matrix, and financial clarity.",
+    description:
+      "The all-in-one operating system for deep focus sprints, atomic habit streaks, priority matrix, and financial clarity.",
     url: "https://trymonkmode.in",
     siteName: "TryMonkMode",
+    images: [
+      {
+        url: "/landingimg.png",
+        width: 1200,
+        height: 630,
+        alt: "TryMonkMode — Operating System for Deep Work & Daily Habits",
+      },
+    ],
     locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TryMonkMode — High-Velocity Productivity & Deep Work",
+    description:
+      "The all-in-one operating system for deep focus sprints, atomic habit streaks, priority matrix, and financial clarity.",
+    images: ["/landingimg.png"],
   },
 };
 

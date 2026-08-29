@@ -1,8 +1,8 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
-import { db } from '../../config/db.js';
-import { habits, users } from '../../db/schema.js';
-import { NotFoundError } from '../../utils/errors.js';
-import type { CreateHabitInput, UpdateHabitInput } from './habits.schema.js';
+import { eq, and, desc, sql } from "drizzle-orm";
+import { db } from "../../config/db.js";
+import { habits, users } from "../../db/schema.js";
+import { NotFoundError } from "../../utils/errors.js";
+import type { CreateHabitInput, UpdateHabitInput } from "./habits.schema.js";
 
 export async function getHabitsService(userId: number) {
   return db
@@ -12,7 +12,10 @@ export async function getHabitsService(userId: number) {
     .orderBy(desc(habits.createdAt));
 }
 
-export async function createHabitService(userId: number, input: CreateHabitInput) {
+export async function createHabitService(
+  userId: number,
+  input: CreateHabitInput,
+) {
   const [created] = await db
     .insert(habits)
     .values({
@@ -30,7 +33,11 @@ export async function createHabitService(userId: number, input: CreateHabitInput
   return created;
 }
 
-export async function updateHabitService(userId: number, habitId: number, input: UpdateHabitInput) {
+export async function updateHabitService(
+  userId: number,
+  habitId: number,
+  input: UpdateHabitInput,
+) {
   const [updated] = await db
     .update(habits)
     .set({
@@ -41,13 +48,17 @@ export async function updateHabitService(userId: number, habitId: number, input:
     .returning();
 
   if (!updated) {
-    throw new NotFoundError('Habit not found.');
+    throw new NotFoundError("Habit not found.");
   }
 
   return updated;
 }
 
-export async function toggleCheckInService(userId: number, habitId: number, dateStr: string) {
+export async function toggleCheckInService(
+  userId: number,
+  habitId: number,
+  dateStr: string,
+) {
   const [habit] = await db
     .select()
     .from(habits)
@@ -55,7 +66,7 @@ export async function toggleCheckInService(userId: number, habitId: number, date
     .limit(1);
 
   if (!habit) {
-    throw new NotFoundError('Habit not found.');
+    throw new NotFoundError("Habit not found.");
   }
 
   const completed = (habit.completedDates as string[]) || [];
@@ -65,7 +76,7 @@ export async function toggleCheckInService(userId: number, habitId: number, date
   let newStreak = habit.streak;
 
   if (isCompleted) {
-    updatedDates = completed.filter(d => d !== dateStr);
+    updatedDates = completed.filter((d) => d !== dateStr);
     newStreak = Math.max(0, newStreak - 1);
   } else {
     updatedDates = [...completed, dateStr];
@@ -86,14 +97,17 @@ export async function toggleCheckInService(userId: number, habitId: number, date
     .returning();
 
   if (!isCompleted) {
-    // Award +15 XP for habit check-in
     await db
       .update(users)
       .set({ xp: sql`${users.xp} + 15` })
       .where(eq(users.id, userId));
   }
 
-  return { habit: updated, checkedIn: !isCompleted, xpGained: !isCompleted ? 15 : 0 };
+  return {
+    habit: updated,
+    checkedIn: !isCompleted,
+    xpGained: !isCompleted ? 15 : 0,
+  };
 }
 
 export async function deleteHabitService(userId: number, habitId: number) {
@@ -103,8 +117,8 @@ export async function deleteHabitService(userId: number, habitId: number) {
     .returning();
 
   if (!deleted) {
-    throw new NotFoundError('Habit not found.');
+    throw new NotFoundError("Habit not found.");
   }
 
-  return { message: 'Habit deleted successfully.' };
+  return { message: "Habit deleted successfully." };
 }

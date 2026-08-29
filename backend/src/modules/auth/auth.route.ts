@@ -18,11 +18,9 @@ import { authenticate } from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Google OAuth
 router.get("/google", googleLogin);
 router.get("/google/callback", googleCallback);
 
-// OTP Auth
 router.post("/send-otp", validate({ body: sendOtpSchema }), sendOtpHandler);
 router.post(
   "/verify-otp",
@@ -36,7 +34,6 @@ router.post(
 );
 router.post("/logout", logoutHandler);
 
-// Profile
 router.get("/me", authenticate, getMeHandler);
 
 export const authRoutes = router;

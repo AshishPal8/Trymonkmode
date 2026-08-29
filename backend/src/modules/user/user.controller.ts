@@ -1,20 +1,24 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 import {
   getProfileService,
   updateProfileService,
   getAllUsersService,
   updateUserRoleTierService,
-} from './user.service.js';
-import { sendResponse } from '../../utils/apiResponse.js';
-import { HttpStatus } from '../../utils/httpStatus.js';
+} from "./user.service.js";
+import { sendResponse } from "../../utils/apiResponse.js";
+import { HttpStatus } from "../../utils/httpStatus.js";
 
-export async function getProfileHandler(req: Request, res: Response, next: NextFunction) {
+export async function getProfileHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const user = await getProfileService(req.user!.userId);
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,
-      message: 'User profile retrieved.',
+      message: "User profile retrieved.",
       data: user,
     });
   } catch (error) {
@@ -22,13 +26,17 @@ export async function getProfileHandler(req: Request, res: Response, next: NextF
   }
 }
 
-export async function updateProfileHandler(req: Request, res: Response, next: NextFunction) {
+export async function updateProfileHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const user = await updateProfileService(req.user!.userId, req.body);
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,
-      message: 'Profile updated successfully.',
+      message: "Profile updated successfully.",
       data: user,
     });
   } catch (error) {
@@ -36,14 +44,17 @@ export async function updateProfileHandler(req: Request, res: Response, next: Ne
   }
 }
 
-// Superadmin: Get All Users
-export async function getAllUsersHandler(req: Request, res: Response, next: NextFunction) {
+export async function getAllUsersHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const allUsers = await getAllUsersService();
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,
-      message: 'All registered users retrieved (Superadmin).',
+      message: "All registered users retrieved (Superadmin).",
       data: allUsers,
     });
   } catch (error) {
@@ -51,8 +62,11 @@ export async function getAllUsersHandler(req: Request, res: Response, next: Next
   }
 }
 
-// Superadmin: Update User Role & Tier
-export async function updateUserRoleTierHandler(req: Request, res: Response, next: NextFunction) {
+export async function updateUserRoleTierHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const targetUserId = parseInt(req.params.id as string, 10);
     const updated = await updateUserRoleTierService(targetUserId, req.body);
@@ -60,7 +74,7 @@ export async function updateUserRoleTierHandler(req: Request, res: Response, nex
       return sendResponse({
         res,
         statusCode: HttpStatus.NOT_FOUND,
-        message: 'User profile not found after update.',
+        message: "User profile not found after update.",
       });
     }
     return sendResponse({
