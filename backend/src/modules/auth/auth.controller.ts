@@ -13,7 +13,10 @@ import { sendResponse } from "../../utils/apiResponse.js";
 import { HttpStatus } from "../../utils/httpStatus.js";
 import { env } from "../../config/env.js";
 
-const isProd = env.NODE_ENV === "production";
+const isProd =
+  env.NODE_ENV === "production" ||
+  (typeof env.FRONTEND_URL === "string" &&
+    env.FRONTEND_URL.startsWith("https://"));
 
 const ACCESS_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -207,8 +210,16 @@ export async function logoutHandler(
       await logoutService(rawRefreshToken);
     }
 
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/" });
+    res.clearCookie("access_token", {
+      path: "/",
+      secure: isProd,
+      sameSite: isProd ? ("none" as const) : ("lax" as const),
+    });
+    res.clearCookie("refresh_token", {
+      path: "/",
+      secure: isProd,
+      sameSite: isProd ? ("none" as const) : ("lax" as const),
+    });
 
     return sendResponse({
       res,

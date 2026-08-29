@@ -24,13 +24,32 @@ import { analyticsRoutes } from "./modules/analytics/analytics.route.js";
 
 export const app = express();
 
+// Required for GCP Cloud Run / reverse proxies so secure cookies work
+app.set("trust proxy", 1);
+
 app.use(
   cors({
-    origin: [
-      env.FRONTEND_URL,
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-    ],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      const allowed = [
+        env.FRONTEND_URL,
+        "https://trymonkmode.vercel.app",
+        "https://trymonkmode.in",
+        "https://www.trymonkmode.in",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+      ];
+
+      if (
+        allowed.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
+        origin.includes("trymonkmode")
+      ) {
+        return callback(null, origin);
+      }
+      return callback(null, origin);
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
