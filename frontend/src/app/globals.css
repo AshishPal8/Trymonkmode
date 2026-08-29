@@ -1,0 +1,320 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  :root {
+    --background: #f8f9fa;
+    --foreground: #000000;
+    --card: #ffffff;
+    --card-foreground: #000000;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+    --primary: #0052ff;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f3f5;
+    --secondary-foreground: #000000;
+    --muted: #f1f3f5;
+    --muted-foreground: #52525b;
+    --accent: #f1f3f5;
+    --accent-foreground: #000000;
+    --destructive: #ff5c39;
+    --destructive-foreground: #ffffff;
+    --border: rgba(0, 0, 0, 0.08);
+    --input: rgba(0, 0, 0, 0.08);
+    --ring: #0052ff;
+    --radius: 0.875rem;
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: #000000;
+    --sidebar-border: rgba(0, 0, 0, 0.08);
+    --sidebar-accent: #f1f3f5;
+    --sidebar-accent-foreground: #000000;
+
+    /* Category Tokens (Light Mode) */
+    --cat-inbox-bg: #fff1ee;
+    --cat-inbox-border: #fed7aa;
+    --cat-inbox-text: #9a3412;
+    --cat-inbox-badge: #ea580c;
+
+    --cat-focus-bg: #f5f3ff;
+    --cat-focus-border: #ddd6fe;
+    --cat-focus-text: #5b21b6;
+    --cat-focus-badge: #7c3aed;
+
+    --cat-done-bg: #f0fdf4;
+    --cat-done-border: #bbf7d0;
+    --cat-done-text: #166534;
+    --cat-done-badge: #16a34a;
+
+    /* Journal Notebook Colors */
+    --journal-bg: #FAF6EE;
+    --journal-border: #E5DEC9;
+    --journal-text: #1E1A16;
+    --journal-line: rgba(0, 0, 0, 0.08);
+  }
+
+  .dark {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #0b0b0e;
+    --card-foreground: #ffffff;
+    --popover: #0b0b0e;
+    --popover-foreground: #ffffff;
+    --primary: #0052ff;
+    --primary-foreground: #ffffff;
+    --secondary: #121216;
+    --secondary-foreground: #ffffff;
+    --muted: #141419;
+    --muted-foreground: #a1a1aa;
+    --accent: #181820;
+    --accent-foreground: #ffffff;
+    --destructive: #ff5c39;
+    --destructive-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.12);
+    --input: rgba(255, 255, 255, 0.14);
+    --ring: #0052ff;
+
+    --sidebar: #060608;
+    --sidebar-foreground: #ffffff;
+    --sidebar-border: rgba(255, 255, 255, 0.12);
+    --sidebar-accent: #141418;
+    --sidebar-accent-foreground: #ffffff;
+
+    /* Category Tokens (Dark OLED Mode) */
+    --cat-inbox-bg: #1c110f;
+    --cat-inbox-border: rgba(255, 92, 57, 0.3);
+    --cat-inbox-text: #ff8a70;
+    --cat-inbox-badge: #ff5c39;
+
+    --cat-focus-bg: #141021;
+    --cat-focus-border: rgba(139, 92, 246, 0.3);
+    --cat-focus-text: #c4b5fd;
+    --cat-focus-badge: #8b5cf6;
+
+    --cat-done-bg: #0d1a12;
+    --cat-done-border: rgba(34, 197, 94, 0.3);
+    --cat-done-text: #86efac;
+    --cat-done-badge: #22c55e;
+
+    /* Journal Notebook Colors (Dark) */
+    --journal-bg: #111115;
+    --journal-border: rgba(255, 255, 255, 0.12);
+    --journal-text: #F8F4EE;
+    --journal-line: rgba(255, 255, 255, 0.08);
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', var(--font-geist-sans), sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Handwriting Typography */
+.font-handwriting {
+  font-family: var(--font-caveat), var(--font-kalam), 'Caveat', 'Kalam', cursive, sans-serif;
+}
+
+.font-cursive-bold {
+  font-family: var(--font-kalam), var(--font-caveat), 'Kalam', 'Caveat', cursive, sans-serif;
+}
+
+/* Shadcn Utility Aliases */
+.bg-background { background-color: var(--background); }
+.text-foreground { color: var(--foreground); }
+.bg-card { background-color: var(--card); }
+.text-card-foreground { color: var(--card-foreground); }
+.bg-muted { background-color: var(--muted); }
+.text-muted-foreground { color: var(--muted-foreground); }
+.border-border { border-color: var(--border); }
+.bg-sidebar { background-color: var(--sidebar); }
+.text-sidebar-foreground { color: var(--sidebar-foreground); }
+.border-sidebar-border { border-color: var(--sidebar-border); }
+
+/* Liquid Glass Pop Cards & Containers (Apple VisionOS / macOS Liquid Glass) */
+.liquid-glass-pop,
+.ios-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(246, 248, 252, 0.72) 100%);
+  color: var(--card-foreground);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 14px 36px -8px rgba(0, 0, 0, 0.06),
+              0 2px 8px -1px rgba(0, 0, 0, 0.03),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.dark .liquid-glass-pop,
+.dark .ios-card {
+  background: linear-gradient(135deg, rgba(24, 24, 30, 0.78) 0%, rgba(10, 10, 14, 0.9) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.85),
+              0 4px 16px -2px rgba(0, 0, 0, 0.6),
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+}
+
+/* Designer Journal A4 Sheet Canvas */
+.a4-sheet-canvas {
+  background-color: var(--journal-bg);
+  color: var(--journal-text);
+  border: 1px solid var(--journal-border);
+  min-height: 720px;
+  box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.2),
+              0 4px 16px rgba(0, 0, 0, 0.06),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+
+.dark .a4-sheet-canvas {
+  box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.9),
+              0 4px 16px rgba(0, 0, 0, 0.6),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+}
+
+.journal-lined-paper {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 35px,
+    var(--journal-line) 35px,
+    var(--journal-line) 36px
+  );
+  line-height: 36px;
+}
+
+.journal-grid-paper {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, var(--journal-line) 1.5px, transparent 1.5px);
+}
+
+/* Washi Tapes */
+.washi-tape {
+  position: absolute;
+  height: 20px;
+  width: 90px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transform: rotate(-3deg);
+  opacity: 0.85;
+}
+
+.washi-tape-yellow {
+  background: rgba(254, 240, 138, 0.85);
+  border-left: 2px dashed rgba(202, 138, 4, 0.4);
+  border-right: 2px dashed rgba(202, 138, 4, 0.4);
+}
+
+.washi-tape-pink {
+  background: rgba(254, 205, 211, 0.85);
+  border-left: 2px dashed rgba(225, 29, 72, 0.4);
+  border-right: 2px dashed rgba(225, 29, 72, 0.4);
+}
+
+.washi-tape-cyan {
+  background: rgba(186, 230, 253, 0.85);
+  border-left: 2px dashed rgba(2, 132, 199, 0.4);
+  border-right: 2px dashed rgba(2, 132, 199, 0.4);
+}
+
+.washi-tape-green {
+  background: rgba(187, 247, 208, 0.85);
+  border-left: 2px dashed rgba(22, 163, 74, 0.4);
+  border-right: 2px dashed rgba(22, 163, 74, 0.4);
+}
+
+/* Liquid Glass Buttons */
+.btn-liquid-pop {
+  position: relative;
+  background: linear-gradient(180deg, #1A6BFF 0%, #0052FF 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 82, 255, 0.35),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-liquid-pop:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 82, 255, 0.45),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+}
+
+.btn-liquid-pop:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Prevent dragging and unauthorized saving of images */
+img, svg, picture, video, canvas, [data-nimg], [data-next-image] {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+.no-drag {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  pointer-events: none !important;
+}
+
+.prevent-select {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
