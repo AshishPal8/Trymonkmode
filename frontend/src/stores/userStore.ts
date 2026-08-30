@@ -96,6 +96,12 @@ export const useUserStore = create<UserStoreState>()(
               undefined
             : undefined;
 
+        try {
+          await authApi.logout(refreshToken);
+        } catch {
+          // ignore network errors on logout
+        }
+
         if (typeof window !== "undefined") {
           localStorage.removeItem("trymonk_token");
           localStorage.removeItem("trymonk_access_token");
@@ -110,12 +116,6 @@ export const useUserStore = create<UserStoreState>()(
           isCheckingAuth: false,
           user: INITIAL_USER,
         });
-
-        try {
-          await authApi.logout(refreshToken);
-        } catch {
-          // ignore network errors on logout
-        }
 
         toast.info("Logged out successfully.");
       },
