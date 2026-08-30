@@ -35,46 +35,19 @@ export function setAuthCookies(
 }
 
 /**
- * Comprehensively clears authentication cookies across all browser engines
+ * Comprehensively clears authentication cookies across all browser engines (Chrome, Safari, Edge, Firefox)
+ * Sends explicit raw Set-Cookie expiration headers for both partitioned and standard cross-site contexts.
  */
 export function clearAuthCookies(res: Response): void {
-  // 1. Explicit SameSite=None; Secure header (For Production & Cross-Site Cloud Run)
-  res.cookie("access_token", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: 0,
-    expires: new Date(0),
-  });
-  res.cookie("refresh_token", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: 0,
-    expires: new Date(0),
-  });
-
-  // 2. Explicit SameSite=Lax header (For Localhost & Standard Dev)
-  res.cookie("access_token", "", {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-    expires: new Date(0),
-  });
-  res.cookie("refresh_token", "", {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-    expires: new Date(0),
-  });
-
-  // 3. Fallback generic clear
-  res.clearCookie("access_token", { path: "/" });
-  res.clearCookie("refresh_token", { path: "/" });
+  // Explicit raw HTTP Set-Cookie headers with Epoch expiration & Max-Age=0
+  res.setHeader("Set-Cookie", [
+    "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=None; Partitioned",
+    "refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=None; Partitioned",
+    "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=None",
+    "refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=None",
+    "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax",
+    "refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax",
+    "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0",
+    "refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0",
+  ]);
 }
