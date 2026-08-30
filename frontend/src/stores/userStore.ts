@@ -88,18 +88,35 @@ export const useUserStore = create<UserStoreState>()(
         return true;
       },
 
-      logout: () => {
+      logout: async () => {
+        const refreshToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("trymonk_refresh_token") ||
+              localStorage.getItem("aura_refresh_token") ||
+              undefined
+            : undefined;
+
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("trymonk_token");
+          localStorage.removeItem("trymonk_access_token");
+          localStorage.removeItem("trymonk_refresh_token");
+          localStorage.removeItem("aura_access_token");
+          localStorage.removeItem("aura_refresh_token");
+          localStorage.removeItem("trymonk_user_store");
+        }
+
         set({
           isAuthenticated: false,
           isCheckingAuth: false,
           user: INITIAL_USER,
         });
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("trymonk_token");
-          localStorage.removeItem("trymonk_access_token");
-          localStorage.removeItem("trymonk_refresh_token");
+
+        try {
+          await authApi.logout(refreshToken);
+        } catch {
+          // ignore network errors on logout
         }
-        authApi.logout().catch(() => {});
+
         toast.info("Logged out successfully.");
       },
 

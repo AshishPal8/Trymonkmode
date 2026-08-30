@@ -12,27 +12,7 @@ import {
 import { sendResponse } from "../../utils/apiResponse.js";
 import { HttpStatus } from "../../utils/httpStatus.js";
 import { env } from "../../config/env.js";
-
-const isProd =
-  env.NODE_ENV === "production" ||
-  (typeof env.FRONTEND_URL === "string" &&
-    env.FRONTEND_URL.startsWith("https://"));
-
-const ACCESS_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? ("none" as const) : ("lax" as const),
-  maxAge: 60 * 60 * 1000, // 1 hour
-  path: "/",
-};
-
-const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? ("none" as const) : ("lax" as const),
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-  path: "/",
-};
+import { setAuthCookies, clearAuthCookies } from "../../utils/cookie.js";
 
 export const googleLogin = (_req: Request, res: Response): void => {
   const params = new URLSearchParams({
@@ -77,8 +57,7 @@ export const googleCallback = async (
       userAgent,
     );
 
-    res.cookie("access_token", result.accessToken, ACCESS_COOKIE_OPTIONS);
-    res.cookie("refresh_token", result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     res.redirect(
       `${env.FRONTEND_URL}/?google_auth=success&token=${encodeURIComponent(
@@ -132,8 +111,7 @@ export async function verifyOtpHandler(
       type,
     );
 
-    res.cookie("access_token", result.accessToken, ACCESS_COOKIE_OPTIONS);
-    res.cookie("refresh_token", result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     return sendResponse({
       res,
@@ -166,8 +144,7 @@ export async function refreshTokenHandler(
       userAgent,
     );
 
-    res.cookie("access_token", result.accessToken, ACCESS_COOKIE_OPTIONS);
-    res.cookie("refresh_token", result.refreshToken, REFRESH_COOKIE_OPTIONS);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     return sendResponse({
       res,
@@ -198,28 +175,19 @@ export async function getMeHandler(
   }
 }
 
-export async function logoutHandler(
+export const logoutHandler = async (
   req: Request,
   res: Response,
   next: NextFunction,
-) {
+) => {
   try {
     const rawRefreshToken =
       req.cookies?.refresh_token || req.body?.refreshToken;
     if (rawRefreshToken) {
-      await logoutService(rawRefreshToken);
+      await logoutService(rawRefreshToken).catch(() => {});
     }
 
-    res.clearCookie("access_token", {
-      path: "/",
-      secure: isProd,
-      sameSite: isProd ? ("none" as const) : ("lax" as const),
-    });
-    res.clearCookie("refresh_token", {
-      path: "/",
-      secure: isProd,
-      sameSite: isProd ? ("none" as const) : ("lax" as const),
-    });
+    clearAuthCookies(res);
 
     return sendResponse({
       res,
@@ -229,4 +197,4 @@ export async function logoutHandler(
   } catch (error) {
     next(error);
   }
-}
+};
