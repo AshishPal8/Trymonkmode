@@ -22,15 +22,6 @@ export const REFRESH_COOKIE_OPTIONS = {
   path: "/",
 };
 
-export const CLEAR_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? ("none" as const) : ("lax" as const),
-  path: "/",
-  maxAge: 0,
-  expires: new Date(0),
-};
-
 /**
  * Sets authentication access and refresh cookies
  */
@@ -44,16 +35,46 @@ export function setAuthCookies(
 }
 
 /**
- * Comprehensively clears authentication cookies
+ * Comprehensively clears authentication cookies across all browser engines
  */
 export function clearAuthCookies(res: Response): void {
-  // Set empty value with Epoch expiration
-  res.cookie("access_token", "", CLEAR_COOKIE_OPTIONS);
-  res.cookie("refresh_token", "", CLEAR_COOKIE_OPTIONS);
-  res.clearCookie("access_token", CLEAR_COOKIE_OPTIONS);
-  res.clearCookie("refresh_token", CLEAR_COOKIE_OPTIONS);
+  // 1. Explicit SameSite=None; Secure header (For Production & Cross-Site Cloud Run)
+  res.cookie("access_token", "", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  res.cookie("refresh_token", "", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
 
-  // Fallback for loose path clearing
+  // 2. Explicit SameSite=Lax header (For Localhost & Standard Dev)
+  res.cookie("access_token", "", {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  res.cookie("refresh_token", "", {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+
+  // 3. Fallback generic clear
   res.clearCookie("access_token", { path: "/" });
   res.clearCookie("refresh_token", { path: "/" });
 }
