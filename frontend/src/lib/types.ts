@@ -15,7 +15,8 @@ export type ActiveModuleId =
   | 'notes'
   | 'bookmarks'
   | 'finance'
-  | 'analytics';
+  | 'analytics'
+  | 'admin';
 
 export interface AppPageItem {
   id: number;

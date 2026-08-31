@@ -18,27 +18,27 @@ router.get("/", authenticate, getAppPagesHandler);
 router.get(
   "/admin/all",
   authenticate,
-  authorizeRoles("superadmin"),
+  authorizeRoles("superadmin", "admin"),
   getAllAppPagesAdminHandler,
 );
 router.post(
   "/",
   authenticate,
-  authorizeRoles("superadmin"),
+  authorizeRoles("superadmin", "admin"),
   validate({ body: createAppPageSchema }),
   createAppPageHandler,
 );
 router.patch(
   "/:id",
   authenticate,
-  authorizeRoles("superadmin"),
+  authorizeRoles("superadmin", "admin"),
   validate({ body: updateAppPageSchema }),
   updateAppPageHandler,
 );
 router.post(
   "/:id/toggle",
   authenticate,
-  authorizeRoles("superadmin"),
+  authorizeRoles("superadmin", "admin"),
   toggleAppPageHandler,
 );
 

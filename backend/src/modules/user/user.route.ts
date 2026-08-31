@@ -24,7 +24,7 @@ router.patch(
   updateProfileHandler,
 );
 
-router.get("/all", authorizeRoles("superadmin"), getAllUsersHandler);
+router.get("/all", authorizeRoles("superadmin", "admin"), getAllUsersHandler);
 router.patch(
   "/:id/role-tier",
   authorizeRoles("superadmin"),

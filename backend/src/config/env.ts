@@ -34,6 +34,15 @@ const envSchema = z.object({
         process.env.GOOGLE_CALLBACK_URL ||
         "http://localhost:4000/api/google/callback",
     ),
+  IMAGEKIT_PUBLIC_KEY: z
+    .string()
+    .default(() => process.env.IMAGEKIT_PUBLIC_KEY || ""),
+  IMAGEKIT_PRIVATE_KEY: z
+    .string()
+    .default(() => process.env.IMAGEKIT_PRIVATE_KEY || ""),
+  IMAGEKIT_URL_ENDPOINT: z
+    .string()
+    .default(() => process.env.IMAGEKIT_URL_ENDPOINT || ""),
 });
 
 export const env = envSchema.parse(process.env);

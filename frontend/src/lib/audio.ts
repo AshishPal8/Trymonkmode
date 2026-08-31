@@ -1,17 +1,26 @@
 // Real Web Audio Synthesizers for Ambient Sounds (Rain, White Noise, Cafe, Forest, Cosmic Drone)
 
-export type AmbientSoundType = 'none' | 'rain' | 'whitenoise' | 'cafe' | 'forest' | 'cosmic';
+export type AmbientSoundType =
+  | "none"
+  | "rain"
+  | "whitenoise"
+  | "cafe"
+  | "forest"
+  | "cosmic";
 
 class AmbientSoundEngine {
   private ctx: AudioContext | null = null;
-  private currentType: AmbientSoundType = 'none';
+  private currentType: AmbientSoundType = "none";
   private masterGain: GainNode | null = null;
   private activeNodes: (AudioNode | number)[] = [];
   private volume: number = 0.5;
 
   private initCtx() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!this.ctx && typeof window !== "undefined") {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
         this.masterGain = this.ctx.createGain();
@@ -33,16 +42,19 @@ class AmbientSoundEngine {
   }
 
   stop() {
-    if (this.currentType === 'none') return;
+    if (this.currentType === "none") return;
     try {
-      this.activeNodes.forEach(node => {
-        if (typeof node === 'number') {
+      this.activeNodes.forEach((node) => {
+        if (typeof node === "number") {
           clearInterval(node);
-        } else if ('stop' in node && typeof (node as AudioScheduledSourceNode).stop === 'function') {
+        } else if (
+          "stop" in node &&
+          typeof (node as AudioScheduledSourceNode).stop === "function"
+        ) {
           try {
             (node as AudioScheduledSourceNode).stop();
           } catch {}
-        } else if ('disconnect' in node) {
+        } else if ("disconnect" in node) {
           try {
             node.disconnect();
           } catch {}
@@ -50,30 +62,30 @@ class AmbientSoundEngine {
       });
     } catch {}
     this.activeNodes = [];
-    this.currentType = 'none';
+    this.currentType = "none";
   }
 
   play(type: AmbientSoundType) {
     this.stop();
-    if (type === 'none') return;
+    if (type === "none") return;
 
     this.initCtx();
     if (!this.ctx || !this.masterGain) return;
-    if (this.ctx.state === 'suspended') {
+    if (this.ctx.state === "suspended") {
       this.ctx.resume();
     }
 
     this.currentType = type;
 
-    if (type === 'rain') {
+    if (type === "rain") {
       this.createRainSound();
-    } else if (type === 'whitenoise') {
+    } else if (type === "whitenoise") {
       this.createWhiteNoise();
-    } else if (type === 'cafe') {
+    } else if (type === "cafe") {
       this.createCafeAmbience();
-    } else if (type === 'forest') {
+    } else if (type === "forest") {
       this.createForestBreeze();
-    } else if (type === 'cosmic') {
+    } else if (type === "cosmic") {
       this.createCosmicDrone();
     }
   }
@@ -98,7 +110,7 @@ class AmbientSoundEngine {
 
     // Filter to simulate rain (lowpass filter with resonance)
     const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
+    filter.type = "lowpass";
     filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
     filter.Q.setValueAtTime(1.5, this.ctx.currentTime);
 
@@ -139,7 +151,7 @@ class AmbientSoundEngine {
     noiseSource.loop = true;
 
     const filter1 = this.ctx.createBiquadFilter();
-    filter1.type = 'bandpass';
+    filter1.type = "bandpass";
     filter1.frequency.setValueAtTime(450, this.ctx.currentTime);
     filter1.Q.setValueAtTime(0.8, this.ctx.currentTime);
 
@@ -162,7 +174,7 @@ class AmbientSoundEngine {
     noiseSource.loop = true;
 
     const filter = this.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
+    filter.type = "bandpass";
     filter.frequency.setValueAtTime(800, this.ctx.currentTime);
     filter.Q.setValueAtTime(2.0, this.ctx.currentTime);
 
@@ -181,12 +193,12 @@ class AmbientSoundEngine {
     if (!this.ctx || !this.masterGain) return;
     // Multi-oscillator binaural drone chord (110Hz A2, 164.81Hz E3, 220Hz A3)
     const freqs = [110, 164.81, 220, 329.63];
-    freqs.forEach(f => {
+    freqs.forEach((f) => {
       if (!this.ctx || !this.masterGain) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
-      osc.type = 'sine';
+      osc.type = "sine";
       osc.frequency.setValueAtTime(f, this.ctx.currentTime);
 
       gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
@@ -198,6 +210,64 @@ class AmbientSoundEngine {
       this.activeNodes.push(osc, gain);
     });
   }
+
+  playCompletionChime() {
+    this.initCtx();
+    if (!this.ctx) return;
+    if (this.ctx.state === "suspended") {
+      this.ctx.resume();
+    }
+
+    const now = this.ctx.currentTime;
+    const harmonics = [
+      { freq: 528, gain: 0.5, decay: 3.5 },
+      { freq: 1056, gain: 0.3, decay: 2.8 },
+      { freq: 1584, gain: 0.18, decay: 2.0 },
+      { freq: 2112, gain: 0.1, decay: 1.5 },
+    ];
+
+    harmonics.forEach(({ freq, gain, decay }) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gainNode = this.ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now);
+
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(gain * this.volume, now + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+
+      osc.connect(gainNode);
+      gainNode.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + decay);
+    });
+  }
 }
 
 export const ambientSound = new AmbientSoundEngine();
+
+export function triggerTimerCompletionAlert(isBreak: boolean) {
+  ambientSound.playCompletionChime();
+
+  if (
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    Notification.permission === "granted"
+  ) {
+    try {
+      new Notification(
+        isBreak ? "⚡ Break Ended" : "🎯 Focus Session Complete!",
+        {
+          body: isBreak
+            ? "Break is over! Time to get back in the flow state."
+            : "Focus timer complete! Take a relaxing break.",
+          icon: "/icon.png",
+          silent: true, // We already play our high quality synthesized chime
+        },
+      );
+    } catch {}
+  }
+}

@@ -34,9 +34,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         value={value}
         data-slot="input"
         className={cn(
-          "h-8 w-full min-w-0 rounded-xl border border-border bg-muted/50 dark:bg-muted/30 px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/70 transition-all outline-none shadow-2xs hover:border-border/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50",
-          leftIcon && "pl-8.5",
-          (rightIcon || hasClearButton) && "pr-8.5",
+          "w-full min-w-0 px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs text-foreground placeholder:text-muted-foreground/60 transition-all outline-none focus:outline-none focus:ring-2 focus:ring-[#0052FF] focus:border-transparent disabled:pointer-events-none disabled:opacity-50",
+          leftIcon && "pl-9",
+          (rightIcon || hasClearButton) && "pr-9",
           className
         )}
         {...props}

@@ -200,3 +200,25 @@ export const usersApi = {
 export const analyticsApi = {
   getAnalytics: () => api.get('/analytics'),
 };
+
+export const blogsApi = {
+  getPublicBlogs: (params?: { page?: number | string; limit?: number | string; search?: string; tag?: string }) =>
+    api.get('/blogs', { params }),
+  getBlogBySlug: (slug: string) => api.get(`/blogs/${slug}`),
+  getAllBlogsAdmin: (params?: { page?: number | string; limit?: number | string; search?: string }) =>
+    api.get('/blogs/admin/all', { params }),
+  createBlog: (data: any) => api.post('/blogs', data),
+  updateBlog: (id: number, data: any) => api.patch(`/blogs/${id}`, data),
+  deleteBlog: (id: number) => api.delete(`/blogs/${id}`),
+};
+
+export const uploadApi = {
+  uploadImage: (file: File, folder?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (folder) formData.append('folder', folder);
+    return api.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
