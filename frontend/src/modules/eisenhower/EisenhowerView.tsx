@@ -13,6 +13,8 @@ import { TaskItem } from '@/lib/types';
 import { getTodayDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ModuleContainer } from '@/components/layout/ModuleContainer';
+import { Modal } from '@/components/ui/modal';
+import { Input } from '@/components/ui/input';
 
 export function EisenhowerView() {
   const { tasks, toggleTask, updateTaskQuadrant, addTask } = useApp();
@@ -175,43 +177,53 @@ export function EisenhowerView() {
       </div>
 
       {/* Quick Add into Quadrant Modal */}
-      {activeModalQuadrant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
-          <div className="ios-card rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-card-foreground">
-              Add Task to {quadrants.find(q => q.id === activeModalQuadrant)?.action}
-            </h3>
-
-            <form onSubmit={handleQuickAdd} className="space-y-3">
-              <input
-                type="text"
-                required
-                autoFocus
-                placeholder="e.g., Review distributed caching PR"
-                value={quickTitle}
-                onChange={e => setQuickTitle(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#0052FF]"
-              />
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveModalQuadrant(null)}
-                  className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <Button
-                  type="submit"
-                  className="px-5 py-2 bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl cursor-pointer"
-                >
-                  Add to Matrix
-                </Button>
-              </div>
-            </form>
+      <Modal
+        isOpen={!!activeModalQuadrant}
+        onClose={() => setActiveModalQuadrant(null)}
+        title={`Add to ${
+          quadrants.find((q) => q.id === activeModalQuadrant)?.title || "Matrix"
+        }`}
+        description={`Directly prioritize into: ${
+          quadrants.find((q) => q.id === activeModalQuadrant)?.action || ""
+        }`}
+        icon={<Zap className="w-4 h-4" />}
+        topAccentColor={
+          quadrants.find((q) => q.id === activeModalQuadrant)?.tagColor || "#0052FF"
+        }
+        maxWidth="md"
+      >
+        <form onSubmit={handleQuickAdd} className="space-y-3.5 pt-1">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+              Task Title *
+            </label>
+            <Input
+              type="text"
+              required
+              autoFocus
+              placeholder="e.g. Review distributed caching PR"
+              value={quickTitle}
+              onChange={(e) => setQuickTitle(e.target.value)}
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-border/60">
+            <button
+              type="button"
+              onClick={() => setActiveModalQuadrant(null)}
+              className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              className="px-5 py-2 bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl cursor-pointer"
+            >
+              Add to Matrix
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </ModuleContainer>
   );
 }

@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 
 export const NOTE_COLORS = [
   {
@@ -408,216 +409,171 @@ export function NotesView() {
       </div>
 
       {/* 3. SPACIOUS CENTERED MODAL FOR ADDING & UPDATING STICKY NOTES */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/65 backdrop-blur-md animate-fadeIn">
-          {/* Card Container with Dynamic Color Tint */}
-          <div
-            style={{
-              borderColor: activeColorConfig.border,
-            }}
-            className="relative w-full max-w-lg p-6 sm:p-7 rounded-3xl bg-card border shadow-[0_25px_70px_rgba(0,0,0,0.45)] space-y-5 text-foreground animate-scaleUp overflow-hidden"
-          >
-            {/* Top Tape Glow Accent */}
-            <div
-              style={{ backgroundColor: selectedColor }}
-              className="absolute top-0 left-10 right-10 h-1.5 rounded-b-full shadow-md transition-colors duration-300"
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={modalMode === "create" ? "New Sticky Note" : "Edit Sticky Note"}
+        description={
+          modalMode === "create"
+            ? "Capture your thoughts, code snippets, or sprint ideas"
+            : "Update note content, tags, or theme color"
+        }
+        icon={<FileText className="w-5 h-5" />}
+        topAccentColor={selectedColor}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleSaveNote} className="space-y-4 pt-1">
+          {/* Note Title Input */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                Note Title
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsPinned(!isPinned)}
+                title={isPinned ? "Pinned to top" : "Pin to top"}
+                className={`px-2 py-0.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
+                  isPinned
+                    ? "text-amber-500 bg-amber-500/15"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                }`}
+              >
+                <Pin className="w-3.5 h-3.5 fill-current" />
+                <span>{isPinned ? "Pinned" : "Pin"}</span>
+              </button>
+            </div>
+            <Input
+              type="text"
+              required
+              placeholder="e.g., API Architecture Spec, Sprint ideas..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
             />
+          </div>
 
-            {/* Modal Top Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-border/60">
-              <div className="flex items-center gap-3">
-                <div
-                  style={{
-                    backgroundColor: activeColorConfig.bgGlass,
-                    color: selectedColor,
-                  }}
-                  className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs transition-colors duration-300"
-                >
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-foreground tracking-tight">
-                    {modalMode === "create"
-                      ? "New Sticky Note"
-                      : "Edit Sticky Note"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {modalMode === "create"
-                      ? "Capture your thoughts, code snippets, or sprint ideas"
-                      : "Update note content, tags, or theme color"}
-                  </p>
-                </div>
-              </div>
+          {/* Content & Details Textarea */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
+              Content & Details
+            </label>
+            <textarea
+              rows={4}
+              required
+              placeholder="Write your note, checklist, instructions, code snippet..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl bg-muted/40 border border-border text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-2xs resize-none"
+            />
+          </div>
 
-              <div className="flex items-center gap-1.5">
-                {/* Pin Toggle Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsPinned(!isPinned)}
-                  title={isPinned ? "Pinned to top" : "Pin to top"}
-                  className={`p-2 rounded-xl transition cursor-pointer ${
-                    isPinned
-                      ? "text-amber-500 bg-amber-500/15"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  }`}
+          {/* Tags Section */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+              Tags & Categories
+            </label>
+            <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-2xl bg-muted/30 border border-border/80 min-h-[42px]">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-background text-xs font-semibold text-foreground border border-border shadow-2xs"
                 >
-                  <Pin className="w-4 h-4 fill-current" />
-                </button>
+                  <span className="text-muted-foreground">#</span>
+                  <span>{t}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(t)}
+                    className="text-muted-foreground hover:text-rose-500 transition cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="+ Add tag (Press Enter)..."
+                className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none px-2 py-1 flex-1 min-w-[140px]"
+              />
+            </div>
+          </div>
 
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition cursor-pointer"
-                  title="Close modal"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+          {/* Color Theme Selector */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Canvas Color Theme
+              </label>
+              <span className="text-[11px] font-semibold text-foreground">
+                {activeColorConfig.name}
+              </span>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSaveNote} className="space-y-4">
-              {/* Title Field */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Note Title
-                </label>
-                <Input
-                  type="text"
-                  autoFocus
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., API Architecture Spec, Sprint ideas..."
-                  className="h-10 rounded-2xl bg-muted/40 border-border text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-[#0052FF]"
-                />
-              </div>
-
-              {/* Content Textarea */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Content & Details
-                </label>
-                <textarea
-                  rows={5}
-                  required
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Write your note, checklist, instructions, code snippet..."
-                  className="w-full px-4 py-3 rounded-2xl bg-muted/40 border border-border text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-[#0052FF] resize-none leading-relaxed transition"
-                />
-              </div>
-
-              {/* Tags Section */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                  Tags & Categories
-                </label>
-                <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-2xl bg-muted/30 border border-border/80 min-h-[42px]">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-background text-xs font-semibold text-foreground border border-border shadow-2xs"
-                    >
-                      <span className="text-muted-foreground">#</span>
-                      <span>{t}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(t)}
-                        className="text-muted-foreground hover:text-rose-500 transition cursor-pointer"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === ",") {
-                        e.preventDefault();
-                        handleAddTag();
-                      }
-                    }}
-                    placeholder="+ Add tag (Press Enter)..."
-                    className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none px-2 py-1 flex-1 min-w-[140px]"
-                  />
-                </div>
-              </div>
-
-              {/* Color Theme Selector */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Canvas Color Theme
-                  </label>
-                  <span className="text-[11px] font-semibold text-foreground">
-                    {activeColorConfig.name}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded-2xl bg-muted/40 border border-border">
-                  {NOTE_COLORS.map((c) => {
-                    const isSelected = selectedColor === c.hex;
-                    return (
-                      <button
-                        key={c.hex}
-                        type="button"
-                        onClick={() => setSelectedColor(c.hex)}
-                        title={c.name}
-                        style={{ backgroundColor: c.hex }}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                          isSelected
-                            ? "scale-120 shadow-md ring-3 ring-foreground"
-                            : "opacity-70 hover:opacity-100 hover:scale-105"
-                        }`}
-                      >
-                        {isSelected && (
-                          <Check
-                            className="w-4 h-4 text-white drop-shadow-xs"
-                            strokeWidth={3}
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <Button
-                  type="submit"
-                  disabled={!title.trim() || !content.trim()}
-                  style={{ backgroundColor: selectedColor }}
-                  className="text-white text-xs font-bold px-5 py-2.5 rounded-2xl shadow-lg transition hover:opacity-90 active:scale-95 cursor-pointer flex items-center gap-1.5"
-                >
-                  {modalMode === "create" ? (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      <span>Stick It</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      <span>Save Changes</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
+            <div className="flex items-center justify-between p-2 rounded-2xl bg-muted/40 border border-border">
+              {NOTE_COLORS.map((c) => {
+                const isSelected = selectedColor === c.hex;
+                return (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    onClick={() => setSelectedColor(c.hex)}
+                    title={c.name}
+                    style={{ backgroundColor: c.hex }}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                      isSelected
+                        ? "scale-120 shadow-md ring-3 ring-foreground"
+                        : "opacity-70 hover:opacity-100 hover:scale-105"
+                    }`}
+                  >
+                    {isSelected && (
+                      <Check
+                        className="w-4 h-4 text-white drop-shadow-xs"
+                        strokeWidth={3}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+
+          {/* Modal Actions */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              disabled={!title.trim() || !content.trim()}
+              style={{ backgroundColor: selectedColor }}
+              className="text-white text-xs font-bold px-5 py-2.5 rounded-2xl shadow-lg transition hover:opacity-90 active:scale-95 cursor-pointer flex items-center gap-1.5"
+            >
+              {modalMode === "create" ? (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>Stick It</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

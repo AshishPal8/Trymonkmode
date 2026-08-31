@@ -22,6 +22,7 @@ import { NotesView } from "@/modules/notes/NotesView";
 import { BookmarksView } from "@/modules/bookmarks/BookmarksView";
 import { FinanceView } from "@/modules/finance/FinanceView";
 import { AnalyticsView } from "@/modules/analytics/AnalyticsView";
+import { AdminView } from "@/modules/admin/AdminView";
 
 function MainAppShell() {
   const { isAuthenticated, isCheckingAuth, activeModule } = useApp();
@@ -70,6 +71,8 @@ function MainAppShell() {
         return <FinanceView />;
       case "analytics":
         return <AnalyticsView />;
+      case "admin":
+        return <AdminView />;
       default:
         return <DashboardView />;
     }

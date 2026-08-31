@@ -53,9 +53,15 @@ async function seed() {
       category: item.category,
       tags: ['stoic', 'growth', 'reflection'],
       isActive: true,
-    });
+    }).onConflictDoNothing();
   }
   console.log(`[SEED] Seeded ${promptsData.length} curated daily journal reflection prompts.`);
+
+  const { ensurePagesSeeded } = await import('../modules/pages/pages.service.js');
+  await ensurePagesSeeded();
+
+  const { ensureBlogsSeeded } = await import('../modules/blogs/blogs.service.js');
+  await ensureBlogsSeeded();
 
   console.log('[SEED] Database Seeding Finished Successfully!');
   process.exit(0);

@@ -107,19 +107,40 @@ export const DEFAULT_APP_PAGES = [
     icon: "DollarSign",
     orderIndex: 11,
     isEnabled: true,
+    minRole: "user",
+  },
+
+  // System Hub (Admin & Ops)
+  {
+    key: "admin",
+    name: "Admin Center",
+    path: "/admin",
+    hub: "System & Ops",
+    icon: "ShieldAlert",
+    orderIndex: 99,
+    isEnabled: true,
+    minRole: "admin",
   },
 ];
 
 export async function ensurePagesSeeded() {
   try {
-    const existing = await db.select().from(appPages).limit(1);
-    if (existing.length === 0) {
-      for (const page of DEFAULT_APP_PAGES) {
-        await db.insert(appPages).values(page).onConflictDoNothing();
-      }
-      console.log(
-        "✅ Default app pages seeded into PostgreSQL page_master table.",
-      );
+    for (const page of DEFAULT_APP_PAGES) {
+      await db
+        .insert(appPages)
+        .values(page as any)
+        .onConflictDoUpdate({
+          target: appPages.key,
+          set: {
+            name: page.name,
+            path: page.path,
+            hub: page.hub,
+            icon: page.icon,
+            orderIndex: page.orderIndex,
+            minRole: page.minRole || "user",
+            minTier: (page as any).minTier || "free",
+          },
+        });
     }
   } catch (err) {
     console.error("Page seeding check:", err);
@@ -127,12 +148,12 @@ export async function ensurePagesSeeded() {
 }
 
 export async function getAppPagesService(
-  _userRole: string = "user",
+  userRole: string = "user",
   _userTier: string = "free",
 ) {
   await ensurePagesSeeded();
 
-  const pages = await db
+  const allPages = await db
     .select({
       id: appPages.id,
       key: appPages.key,
@@ -141,12 +162,21 @@ export async function getAppPagesService(
       hub: appPages.hub,
       icon: appPages.icon,
       orderIndex: appPages.orderIndex,
+      minRole: appPages.minRole,
+      minTier: appPages.minTier,
     })
     .from(appPages)
     .where(eq(appPages.isEnabled, true))
     .orderBy(asc(appPages.orderIndex));
 
-  return pages;
+  return allPages.filter((page) => {
+    const requiredRole = page.minRole || "user";
+    if (requiredRole === "user") return true;
+    if (requiredRole === "admin")
+      return userRole === "admin" || userRole === "superadmin";
+    if (requiredRole === "superadmin") return userRole === "superadmin";
+    return false;
+  });
 }
 
 export async function getAllAppPagesAdminService() {

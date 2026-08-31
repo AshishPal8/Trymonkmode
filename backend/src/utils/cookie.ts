@@ -22,9 +22,6 @@ export const REFRESH_COOKIE_OPTIONS = {
   path: "/",
 };
 
-/**
- * Sets authentication access and refresh cookies
- */
 export function setAuthCookies(
   res: Response,
   accessToken: string,
@@ -34,12 +31,7 @@ export function setAuthCookies(
   res.cookie("refresh_token", refreshToken, REFRESH_COOKIE_OPTIONS);
 }
 
-/**
- * Comprehensively clears authentication cookies across all browser engines (Chrome, Safari, Edge, Firefox)
- * Sends explicit raw Set-Cookie expiration headers for both partitioned and standard cross-site contexts.
- */
 export function clearAuthCookies(res: Response): void {
-  // Explicit raw HTTP Set-Cookie headers with Epoch expiration & Max-Age=0
   res.setHeader("Set-Cookie", [
     "access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=None; Partitioned",
     "refresh_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; Secure; SameSite=None; Partitioned",

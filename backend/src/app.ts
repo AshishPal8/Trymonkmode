@@ -21,6 +21,8 @@ import notesRoutes from "./modules/notes/notes.route.js";
 import { bookmarkRoutes } from "./modules/bookmarks/bookmarks.route.js";
 import pagesRoutes from "./modules/pages/pages.route.js";
 import { analyticsRoutes } from "./modules/analytics/analytics.route.js";
+import blogsRoutes from "./modules/blogs/blogs.route.js";
+import uploadRoutes from "./modules/upload/upload.route.js";
 
 export const app = express();
 
@@ -89,6 +91,8 @@ app.use("/api/v1/finance", financeRoutes);
 app.use("/api/v1/notes", notesRoutes);
 app.use("/api/v1/bookmarks", bookmarkRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
+app.use("/api/v1/blogs", blogsRoutes);
+app.use("/api/v1/upload", uploadRoutes);
 
 app.use((_req, _res, next) => {
   next(new NotFoundError("The requested endpoint or resource does not exist."));

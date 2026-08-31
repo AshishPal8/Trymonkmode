@@ -20,6 +20,8 @@ import { HabitItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ModuleContainer } from '@/components/layout/ModuleContainer';
 import { CustomSelect } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
+import { Input } from '@/components/ui/input';
 
 export function HabitsView() {
   const { habits, addHabit, toggleHabitForDate, deleteHabit } = useApp();
@@ -253,109 +255,121 @@ export function HabitsView() {
       </div>
 
       {/* Add Habit Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fadeIn">
-          <div className="ios-card rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-card-foreground">Add Daily Habit</h3>
-
-            <form onSubmit={handleCreateHabit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Habit Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 90 Minutes Deep Work Session"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Description</label>
-                <input
-                  type="text"
-                  placeholder="e.g. High-velocity uninterrupted coding"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Category</label>
-                  <CustomSelect
-                    value={category}
-                    onChange={(val) => setCategory(val as HabitItem['category'])}
-                    options={[
-                      { value: 'Work', label: 'Work' },
-                      { value: 'Health', label: 'Health' },
-                      { value: 'Fitness', label: 'Fitness' },
-                      { value: 'Mindset', label: 'Mindset' },
-                      { value: 'Learning', label: 'Learning' }
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Icon</label>
-                  <CustomSelect
-                    value={icon}
-                    onChange={(val) => setIcon(val)}
-                    options={[
-                      { value: 'Zap', label: '⚡ Energy' },
-                      { value: 'Droplet', label: '💧 Water/Hydration' },
-                      { value: 'Activity', label: '🏃 Fitness' },
-                      { value: 'BookOpen', label: '📖 Reading' },
-                      { value: 'Heart', label: '❤️ Health' },
-                      { value: 'Briefcase', label: '💼 Work' }
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Start Time</label>
-                  <input
-                    type="time"
-                    value={timeFrom}
-                    onChange={e => setTimeFrom(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">End Time</label>
-                  <input
-                    type="time"
-                    value={timeTo}
-                    onChange={e => setTimeTo(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-muted border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <Button
-                  type="submit"
-                  className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-5 py-2 shadow-sm cursor-pointer"
-                >
-                  Add Habit
-                </Button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add Daily Habit"
+        description="Establish non-negotiable rituals and build long-term momentum."
+        icon={<Sparkles className="w-4 h-4" />}
+        topAccentColor="#0052FF"
+        maxWidth="md"
+      >
+        <form onSubmit={handleCreateHabit} className="space-y-3.5 pt-1">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+              Habit Title *
+            </label>
+            <Input
+              type="text"
+              required
+              placeholder="e.g. 90 Minutes Deep Work Session"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1">
+              Description
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g. High-velocity uninterrupted coding"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Category
+              </label>
+              <CustomSelect
+                value={category}
+                onChange={(val) => setCategory(val as HabitItem["category"])}
+                options={[
+                  { value: "Work", label: "Work" },
+                  { value: "Health", label: "Health" },
+                  { value: "Fitness", label: "Fitness" },
+                  { value: "Mindset", label: "Mindset" },
+                  { value: "Learning", label: "Learning" },
+                ]}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Icon
+              </label>
+              <CustomSelect
+                value={icon}
+                onChange={(val) => setIcon(val)}
+                options={[
+                  { value: "Zap", label: "⚡ Energy" },
+                  { value: "Droplet", label: "💧 Water/Hydration" },
+                  { value: "Activity", label: "🏃 Fitness" },
+                  { value: "BookOpen", label: "📖 Reading" },
+                  { value: "Heart", label: "❤️ Health" },
+                  { value: "Briefcase", label: "💼 Work" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Start Time
+              </label>
+              <input
+                type="time"
+                value={timeFrom}
+                onChange={(e) => setTimeFrom(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                End Time
+              </label>
+              <input
+                type="time"
+                value={timeTo}
+                onChange={(e) => setTimeTo(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono transition"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/60">
+            <button
+              type="button"
+              onClick={() => setShowAddModal(false)}
+              className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-5 py-2 shadow-sm cursor-pointer"
+            >
+              Add Habit
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </ModuleContainer>
   );
 }

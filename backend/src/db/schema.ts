@@ -9,3 +9,4 @@ export * from './schemas/finance.schema.js';
 export * from './schemas/notes.schema.js';
 export * from './schemas/bookmarks.schema.js';
 export * from './schemas/pages.schema.js';
+export * from './schemas/blogs.schema.js';

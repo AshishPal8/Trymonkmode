@@ -7,6 +7,7 @@ import { LandingHero } from "./LandingHero";
 import { LandingTasks } from "./LandingTasks";
 import { LandingJournal } from "./LandingJournal";
 import { LandingFinance } from "./LandingFinance";
+import { LandingBlogs } from "./LandingBlogs";
 import { LandingFooter } from "./LandingFooter";
 
 export function LandingPage() {
@@ -40,7 +41,10 @@ export function LandingPage() {
       {/* 5. Finance Section */}
       <LandingFinance onOpenAuth={openAuth} />
 
-      {/* 6. Footer */}
+      {/* 6. Blog Articles Section */}
+      <LandingBlogs />
+
+      {/* 7. Footer */}
       <LandingFooter />
 
       {/* Auth Modal */}
