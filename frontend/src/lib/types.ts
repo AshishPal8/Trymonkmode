@@ -85,6 +85,8 @@ export interface HabitItem {
   targetDays: number[];
   completedDates: string[]; // ['2026-08-26']
   streak: number;
+  reminderEnabled?: boolean;
+  reminderTime?: string;
   createdAt: string;
 }
 

@@ -23,6 +23,8 @@ import pagesRoutes from "./modules/pages/pages.route.js";
 import { analyticsRoutes } from "./modules/analytics/analytics.route.js";
 import blogsRoutes from "./modules/blogs/blogs.route.js";
 import uploadRoutes from "./modules/upload/upload.route.js";
+import { notificationRoutes } from "./modules/notifications/notifications.route.js";
+import { settingsRoutes } from "./modules/settings/settings.route.js";
 
 export const app = express();
 
@@ -54,7 +56,15 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-refresh-token",
+      "x-timezone",
+      "Accept",
+      "Origin",
+      "X-Requested-With",
+    ],
   }),
 );
 
@@ -93,6 +103,8 @@ app.use("/api/v1/bookmarks", bookmarkRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/blogs", blogsRoutes);
 app.use("/api/v1/upload", uploadRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/settings", settingsRoutes);
 
 app.use((_req, _res, next) => {
   next(new NotFoundError("The requested endpoint or resource does not exist."));

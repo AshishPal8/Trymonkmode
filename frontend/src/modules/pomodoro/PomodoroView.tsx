@@ -18,11 +18,14 @@ import {
   ExternalLink,
   Link2,
   Check,
-  Headphones
+  Sliders,
+  Timer,
+  Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ModuleContainer } from '@/components/layout/ModuleContainer';
+import { toast } from '@/components/ui/toast';
 
 const DEFAULT_TITLE = 'TryMonkMode | The Operating System for Deep Work & Daily Habits';
 
@@ -33,12 +36,16 @@ const SPOTIFY_PRESETS = [
   { name: '🧠 Brain Food', uri: 'playlist/37i9dQZF1DWXLeA8Omikj7' },
 ];
 
+const FOCUS_PRESETS = [15, 25, 30, 35, 45, 50, 60, 90];
+
 export function PomodoroView() {
   const { logFocusSession } = useApp();
 
   const [activeTab, setActiveTab] = useState<'pomodoro' | 'stopwatch'>('pomodoro');
   const [mode, setMode] = useState<'pomodoro' | 'shortBreak' | 'longBreak'>('pomodoro');
-  const [durationMins] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 });
+  const [durationMins, setDurationMins] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 });
+  const [customSprintInput, setCustomSprintInput] = useState('');
+  const [isCustomDurationOpen, setIsCustomDurationOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [currentTag] = useState('Deep Work');
@@ -88,6 +95,41 @@ export function PomodoroView() {
     document.title = `(${formatTime(seconds)}) ${emoji} ${label} • TryMonkMode`;
   };
 
+  // Request browser notification permissions safely
+  const requestNotificationPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          toast.success('Timer notifications enabled 🔔');
+        }
+      }
+    }
+  };
+
+  // Set custom sprint duration
+  const handleSelectSprintDuration = (mins: number) => {
+    setDurationMins((prev) => ({ ...prev, pomodoro: mins }));
+    if (mode === 'pomodoro') {
+      setIsRunning(false);
+      setTimeLeft(mins * 60);
+      updateTitle(mins * 60, false, 'pomodoro');
+    }
+  };
+
+  const handleApplyCustomDuration = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseInt(customSprintInput, 10);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= 360) {
+      handleSelectSprintDuration(parsed);
+      setIsCustomDurationOpen(false);
+      setCustomSprintInput('');
+      toast.success(`Focus sprint set to ${parsed} minutes!`);
+    } else {
+      toast.error('Please enter a duration between 1 and 360 minutes');
+    }
+  };
+
   // Master Pomodoro Timer (Timestamp-based: immune to browser background throttling)
   useEffect(() => {
     if (isRunning) {
@@ -110,20 +152,36 @@ export function PomodoroView() {
           document.title = '🔔 Complete! • TryMonkMode';
           triggerTimerCompletionAlert(mode !== 'pomodoro');
 
+          // Trigger OS Notification
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(mode === 'pomodoro' ? '🎯 Focus Sprint Complete!' : '☕ Break Finished!', {
+                body:
+                  mode === 'pomodoro'
+                    ? `Phenomenal discipline! Your ${durationMins.pomodoro}-minute deep work session has ended.`
+                    : 'Break time is over. Ready to step back into the zone?',
+                icon: '/favicon.ico',
+              });
+            } catch (err) {
+              console.warn('Desktop notification error:', err);
+            }
+          }
+
           if (mode === 'pomodoro') {
             logFocusSession({
               durationMinutes: durationMins.pomodoro,
               mode: 'pomodoro',
               tag: currentTag,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
             });
+            toast.success(`🎉 ${durationMins.pomodoro}m Sprint Complete! +50 XP added to your stats.`);
           }
         }
       };
 
       // Immediate first tick
       tick();
-      // 500ms interval guarantees perfectly smooth second ticks even with background throttling
+      // 500ms interval guarantees smooth second ticks even with background throttling
       timerIntervalRef.current = setInterval(tick, 500);
 
       // Instant re-sync when switching tabs
@@ -141,7 +199,7 @@ export function PomodoroView() {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       updateTitle(timeLeft, false, mode);
     }
-  }, [isRunning, mode]);
+  }, [isRunning, mode, durationMins]);
 
   // Stopwatch Master Timer (Timestamp-based)
   useEffect(() => {
@@ -197,8 +255,8 @@ export function PomodoroView() {
   };
 
   const handleToggleRunning = () => {
-    if (!isRunning && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
+    if (!isRunning) {
+      requestNotificationPermission();
     }
     setIsRunning(!isRunning);
   };
@@ -225,7 +283,7 @@ export function PomodoroView() {
             Focus & Timer
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Neuroscience interval timer with ambient soundscapes
+            Customizable deep work intervals, OS notifications, and ambient soundscapes
           </p>
         </div>
 
@@ -257,39 +315,109 @@ export function PomodoroView() {
       {activeTab === 'pomodoro' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Timer Card */}
-          <div className="lg:col-span-2 p-8 rounded-3xl ios-card flex flex-col items-center justify-center text-center space-y-6">
+          <div className="lg:col-span-2 p-6 sm:p-8 rounded-3xl ios-card flex flex-col items-center justify-center text-center space-y-6">
             {/* Mode Selectors */}
             <div className="flex items-center gap-1.5 p-1 bg-muted rounded-2xl">
               <button
                 onClick={() => switchMode('pomodoro')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                  mode === 'pomodoro' ? 'bg-[#0052FF] text-white font-semibold shadow-sm' : 'text-muted-foreground'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  mode === 'pomodoro'
+                    ? 'bg-[#0052FF] text-white font-semibold shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                Focus (25m)
+                Focus ({durationMins.pomodoro}m)
               </button>
               <button
                 onClick={() => switchMode('shortBreak')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                  mode === 'shortBreak' ? 'bg-[#22C55E] text-white font-semibold shadow-sm' : 'text-muted-foreground'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  mode === 'shortBreak'
+                    ? 'bg-[#22C55E] text-white font-semibold shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Break (5m)
               </button>
               <button
                 onClick={() => switchMode('longBreak')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
-                  mode === 'longBreak' ? 'bg-[#8B5CF6] text-white font-semibold shadow-sm' : 'text-muted-foreground'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  mode === 'longBreak'
+                    ? 'bg-[#8B5CF6] text-white font-semibold shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 Long Break (15m)
               </button>
             </div>
 
+            {/* Focus Sprint Duration Pills */}
+            {mode === 'pomodoro' && (
+              <div className="w-full max-w-md space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                  <span className="flex items-center gap-1 font-semibold">
+                    <Timer className="w-3.5 h-3.5 text-[#0052FF]" />
+                    <span>Sprint Duration</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomDurationOpen(!isCustomDurationOpen)}
+                    className="text-[11px] text-[#0052FF] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sliders className="w-3 h-3" />
+                    <span>{isCustomDurationOpen ? 'Close' : 'Custom'}</span>
+                  </button>
+                </div>
+
+                {isCustomDurationOpen ? (
+                  <form onSubmit={handleApplyCustomDuration} className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={360}
+                      placeholder="Minutes (e.g. 35, 45, 90)..."
+                      value={customSprintInput}
+                      onChange={(e) => setCustomSprintInput(e.target.value)}
+                      className="text-xs font-mono"
+                    />
+                    <Button
+                      type="submit"
+                      className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold px-4 py-2 rounded-xl shrink-0"
+                    >
+                      Set
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    {FOCUS_PRESETS.map((mins) => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => handleSelectSprintDuration(mins)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-medium transition cursor-pointer ${
+                          durationMins.pomodoro === mins
+                            ? 'bg-[#0052FF] text-white font-semibold shadow-xs'
+                            : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {mins}m
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Circular Ring */}
             <div className="relative w-60 h-60 flex items-center justify-center">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 240 240">
-                <circle cx="120" cy="120" r="95" className="text-muted stroke-current" strokeWidth="8" fill="transparent" />
+                <circle
+                  cx="120"
+                  cy="120"
+                  r="95"
+                  className="text-muted stroke-current"
+                  strokeWidth="8"
+                  fill="transparent"
+                />
                 <circle
                   cx="120"
                   cy="120"
@@ -318,6 +446,7 @@ export function PomodoroView() {
               <button
                 onClick={resetTimer}
                 className="p-3 rounded-full bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
+                title="Reset Timer"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -325,16 +454,23 @@ export function PomodoroView() {
               <Button
                 onClick={handleToggleRunning}
                 className={`px-8 py-3.5 rounded-full text-white text-sm font-bold shadow-md transition transform active:scale-95 cursor-pointer flex items-center gap-2 ${
-                  isRunning ? 'bg-[#FF5C39] hover:bg-[#E04B2A]' : 'bg-[#0052FF] hover:bg-[#0043D6]'
+                  isRunning
+                    ? 'bg-[#FF5C39] hover:bg-[#E04B2A]'
+                    : 'bg-[#0052FF] hover:bg-[#0043D6]'
                 }`}
               >
-                {isRunning ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 fill-white" />}
+                {isRunning ? (
+                  <Pause className="w-4 h-4 fill-white" />
+                ) : (
+                  <Play className="w-4 h-4 fill-white" />
+                )}
                 <span>{isRunning ? 'Pause' : 'Start Focus'}</span>
               </Button>
 
               <button
                 onClick={() => setTimeLeft(0)}
                 className="p-3 rounded-full bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
+                title="Skip to End"
               >
                 <SkipForward className="w-4 h-4" />
               </button>
@@ -363,8 +499,8 @@ export function PomodoroView() {
                   { id: 'cafe', label: 'Cafe', icon: Coffee },
                   { id: 'forest', label: 'Forest', icon: Trees },
                   { id: 'cosmic', label: 'Cosmic', icon: Sparkles },
-                  { id: 'whitenoise', label: 'White Noise', icon: Radio }
-                ].map(snd => {
+                  { id: 'whitenoise', label: 'White Noise', icon: Radio },
+                ].map((snd) => {
                   const Icon = snd.icon;
                   const isPlaying = activeAmbient === snd.id;
                   return (
@@ -393,7 +529,9 @@ export function PomodoroView() {
                     <Music className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-card-foreground">Spotify Focus Player</h3>
+                    <h3 className="text-sm font-bold text-card-foreground">
+                      Spotify Focus Player
+                    </h3>
                   </div>
                 </div>
 
@@ -426,7 +564,9 @@ export function PomodoroView() {
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!customSpotifyUrl.trim()) return;
-                    const match = customSpotifyUrl.match(/open\.spotify\.com\/(playlist|album|track|artist)\/([a-zA-Z0-9]+)/);
+                    const match = customSpotifyUrl.match(
+                      /open\.spotify\.com\/(playlist|album|track|artist)\/([a-zA-Z0-9]+)/
+                    );
                     if (match) {
                       setSpotifyUri(`${match[1]}/${match[2]}`);
                       setIsEditingSpotify(false);

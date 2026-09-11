@@ -18,6 +18,11 @@ import {
   CheckCircle2,
   Save,
   Loader2,
+  Laptop,
+  Monitor,
+  Smartphone,
+  Info,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { triggerCelebrationConfetti } from "@/lib/utils";
@@ -25,6 +30,59 @@ import { UserAvatar } from "../ui/UserAvatar";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { ImageUpload } from "@/components/common/ImageUpload";
+import { toast } from "@/components/ui/toast";
+import { requestAndRegisterFCMToken } from "@/lib/firebase";
+
+const OS_INSTRUCTIONS = [
+  {
+    id: "mac",
+    label: "macOS",
+    icon: Laptop,
+    badge: "Mac",
+    steps: [
+      "Open Apple Menu  > System Settings > Notifications.",
+      "Find Google Chrome (or your active browser) in the list.",
+      "Turn ON 'Allow Notifications' and choose Alert style: Banners or Alerts.",
+      "Ensure Focus / Do Not Disturb is not muting incoming alerts.",
+    ],
+  },
+  {
+    id: "windows",
+    label: "Windows",
+    icon: Monitor,
+    badge: "Win 10/11",
+    steps: [
+      "Open Windows Settings (Win + I) > System > Notifications.",
+      "Ensure the master 'Notifications' toggle is switched ON.",
+      "Scroll down to Google Chrome (or Edge / Brave) and switch ON.",
+      "Ensure Focus Assist is disabled or allows priority alerts.",
+    ],
+  },
+  {
+    id: "android",
+    label: "Android",
+    icon: Smartphone,
+    badge: "Android",
+    steps: [
+      "Long-press Chrome app icon > tap App Info ⓘ > Notifications.",
+      "Switch ON 'All Google Chrome Notifications'.",
+      "Ensure notifications for trymonkmode.in are set to Allowed.",
+      "Verify Battery Optimization doesn't restrict the browser.",
+    ],
+  },
+  {
+    id: "ios",
+    label: "iOS / iPadOS",
+    icon: Smartphone,
+    badge: "iOS 16.4+",
+    steps: [
+      "Open trymonkmode.in in Safari > tap the Share icon ⎋.",
+      "Select 'Add to Home Screen' to install as Web App.",
+      "Launch Try Monk Mode from your Home Screen.",
+      "Open iOS Settings > Notifications > Try Monk Mode > Turn ON.",
+    ],
+  },
+];
 
 export function UserProfileModal() {
   const {
@@ -40,6 +98,7 @@ export function UserProfileModal() {
   const [activeTab, setActiveTab] = useState<
     "profile" | "preferences" | "favorites"
   >("profile");
+  const [selectedOs, setSelectedOs] = useState<string>("mac");
   const [name, setName] = useState(user.name);
   const [title, setTitle] = useState(user.title);
   const [bio, setBio] = useState(user.bio || "");
@@ -57,6 +116,42 @@ export function UserProfileModal() {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const handleToggleNotifications = async (enabled: boolean) => {
+    setNotificationsEnabled(enabled);
+    updateUserProfile({ notificationsEnabled: enabled });
+
+    if (enabled && typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission !== "granted") {
+        try {
+          const perm = await Notification.requestPermission();
+          if (perm === "granted") {
+            await requestAndRegisterFCMToken();
+            toast.success("Push notifications enabled & device token registered!");
+          } else {
+            toast.warning("Please also allow notifications in browser permissions or OS settings.");
+          }
+        } catch (err) {
+          console.warn("Permission request error:", err);
+        }
+      } else {
+        await requestAndRegisterFCMToken();
+        toast.success("Push notifications active.");
+      }
+    } else if (!enabled) {
+      toast.info("Push notifications turned off.");
+    }
+  };
+
+  const handleToggleEmail = (enabled: boolean) => {
+    setEmailNotifications(enabled);
+    updateUserProfile({ emailNotifications: enabled });
+  };
+
+  const handleToggleSound = (enabled: boolean) => {
+    setSoundEffects(enabled);
+    updateUserProfile({ soundEffects: enabled });
+  };
 
   useEffect(() => {
     setName(user.name);
@@ -305,72 +400,132 @@ export function UserProfileModal() {
             </div>
 
             {/* Toggles Strip */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {/* Notifications */}
-              <div className="p-3 rounded-2xl bg-muted/60 border border-border flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-[#0052FF]">
-                    <Bell className="w-4 h-4" />
+              <div className="p-3.5 rounded-2xl bg-muted/60 border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-[#0052FF]">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground">
+                        Push Notifications
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground">
+                        Receive focus timer, scheduled task, and streak reminders
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground">
-                      Push Notifications
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground">
-                      Receive focus timer and streak reminders
-                    </p>
-                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notificationsEnabled}
+                    onChange={(e) => handleToggleNotifications(e.target.checked)}
+                    className="w-4 h-4 accent-[#0052FF] cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={notificationsEnabled}
-                  onChange={(e) => setNotificationsEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-[#0052FF] cursor-pointer"
-                />
+
+                {/* OS Device Notification Guide */}
+                <div className="pt-3 border-t border-border/60 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                      <Info className="w-3.5 h-3.5 text-[#0052FF]" />
+                      <span>Allow device notifications from OS settings:</span>
+                    </div>
+                  </div>
+
+                  {/* OS Selector Tabs */}
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-background/80 rounded-xl border border-border/80">
+                    {OS_INSTRUCTIONS.map((os) => {
+                      const Icon = os.icon;
+                      const isSelected = selectedOs === os.id;
+                      return (
+                        <button
+                          key={os.id}
+                          type="button"
+                          onClick={() => setSelectedOs(os.id)}
+                          className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                            isSelected
+                              ? "bg-[#0052FF] text-white shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                          }`}
+                        >
+                          <Icon className="w-3 h-3" />
+                          <span>{os.badge}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active OS Instructions */}
+                  {(() => {
+                    const activeOs =
+                      OS_INSTRUCTIONS.find((os) => os.id === selectedOs) ||
+                      OS_INSTRUCTIONS[0];
+                    return (
+                      <div className="p-3 rounded-xl bg-background/50 border border-border/50 text-[11px] space-y-1.5">
+                        <div className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                          <activeOs.icon className="w-3.5 h-3.5 text-[#0052FF]" />
+                          <span>{activeOs.label} Setup Steps:</span>
+                        </div>
+                        <ul className="space-y-1 text-muted-foreground pl-1">
+                          {activeOs.steps.map((step, idx) => (
+                            <li key={idx} className="flex items-start gap-1.5">
+                              <span className="font-bold text-[#0052FF] shrink-0 text-[10px] mt-0.5">
+                                {idx + 1}.
+                              </span>
+                              <span className="leading-tight">{step}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* Email Digest */}
-              <div className="p-3 rounded-2xl bg-muted/60 border border-border flex items-center justify-between">
+              <div className="p-3.5 rounded-2xl bg-muted/60 border border-border flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
                     <Globe className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground">
+                    <h4 className="text-xs font-bold text-foreground">
                       Weekly Digest & Analytics
                     </h4>
-                    <p className="text-[10px] text-muted-foreground">
-                      Receive weekly velocity reports via email
+                    <p className="text-[11px] text-muted-foreground">
+                      Receive weekly velocity reports & recap via email
                     </p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={emailNotifications}
-                  onChange={(e) => setEmailNotifications(e.target.checked)}
+                  onChange={(e) => handleToggleEmail(e.target.checked)}
                   className="w-4 h-4 accent-[#0052FF] cursor-pointer"
                 />
               </div>
 
               {/* Sound Effects */}
-              <div className="p-3 rounded-2xl bg-muted/60 border border-border flex items-center justify-between">
+              <div className="p-3.5 rounded-2xl bg-muted/60 border border-border flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-blue-500/10 text-[#0052FF]">
                     <Volume2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground">
+                    <h4 className="text-xs font-bold text-foreground">
                       Audio & Sound FX
                     </h4>
-                    <p className="text-[10px] text-muted-foreground">
-                      Play ambient bells on task and quest completion
+                    <p className="text-[11px] text-muted-foreground">
+                      Play ambient bells on task completion, timer bells, and XP level ups
                     </p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={soundEffects}
-                  onChange={(e) => setSoundEffects(e.target.checked)}
+                  onChange={(e) => handleToggleSound(e.target.checked)}
                   className="w-4 h-4 accent-[#0052FF] cursor-pointer"
                 />
               </div>

@@ -43,6 +43,10 @@ const envSchema = z.object({
   IMAGEKIT_URL_ENDPOINT: z
     .string()
     .default(() => process.env.IMAGEKIT_URL_ENDPOINT || ""),
+  FIREBASE_SERVICE_ACCOUNT_KEY: z.string().optional(),
+  FIREBASE_PROJECT_ID: z.string().optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

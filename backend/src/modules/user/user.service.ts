@@ -8,6 +8,10 @@ import {
 } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import { getFullUserProfile } from "../auth/auth.service.js";
+import {
+  cancelAllUserReminders,
+  reloadUserReminders,
+} from "../cron/reminders.cron.js";
 import type {
   UpdateProfileInput,
   UpdateUserRoleTierInput,
@@ -39,8 +43,14 @@ export async function updateProfileService(
   const settingsUpdates: any = {};
   if (input.theme !== undefined) settingsUpdates.theme = input.theme;
   if (input.timezone !== undefined) settingsUpdates.timezone = input.timezone;
-  if (input.notificationsEnabled !== undefined)
+  if (input.notificationsEnabled !== undefined) {
     settingsUpdates.notificationsEnabled = input.notificationsEnabled;
+    if (input.notificationsEnabled === false) {
+      cancelAllUserReminders(userId);
+    } else {
+      reloadUserReminders(userId).catch(() => {});
+    }
+  }
   if (input.emailNotifications !== undefined)
     settingsUpdates.emailNotifications = input.emailNotifications;
   if (input.soundEffects !== undefined)

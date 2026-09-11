@@ -1,6 +1,7 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { connectDB } from './config/db.js';
+import { startAllCrons, stopAllCrons } from './modules/cron/index.js';
 
 async function startServer() {
   try {
@@ -12,8 +13,13 @@ async function startServer() {
       console.log(`📡 Health Check: http://localhost:${env.PORT}/health`);
     });
 
+    // ⚡ Background Cron Engine (Reminders & Midnight DB Maintenance)
+    // Comment this single line if you ever want to stop all server crons:
+    startAllCrons();
+
     const handleShutdown = (signal: string) => {
       console.log(`Received ${signal}. Shutting down gracefully...`);
+      stopAllCrons();
       server.close(() => {
         console.log('HTTP server closed.');
         process.exit(0);
