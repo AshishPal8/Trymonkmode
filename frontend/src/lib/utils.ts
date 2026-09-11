@@ -73,6 +73,20 @@ export function formatCurrency(amount: number): string {
 class SoundFX {
   private audioCtx: AudioContext | null = null;
 
+  private isSoundEnabled(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      const rawStore = localStorage.getItem('trymonk_user_store');
+      if (rawStore) {
+        const parsed = JSON.parse(rawStore);
+        if (parsed?.state?.user?.soundEffects === false) {
+          return false;
+        }
+      }
+    } catch {}
+    return true;
+  }
+
   private init() {
     if (!this.audioCtx && typeof window !== 'undefined') {
       const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -83,6 +97,7 @@ class SoundFX {
   }
 
   playCheckSound() {
+    if (!this.isSoundEnabled()) return;
     try {
       this.init();
       if (!this.audioCtx) return;
@@ -110,6 +125,7 @@ class SoundFX {
   }
 
   playTimerBell() {
+    if (!this.isSoundEnabled()) return;
     try {
       this.init();
       if (!this.audioCtx) return;

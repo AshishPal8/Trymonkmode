@@ -12,6 +12,7 @@ export interface HabitStoreState {
   habits: HabitItem[];
   setHabits: (habits: HabitItem[]) => void;
   addHabit: (habit: Omit<HabitItem, 'id' | 'createdAt' | 'streak' | 'completedDates'>) => void;
+  updateHabit: (id: string, updates: Partial<HabitItem>) => void;
   toggleHabitForDate: (habitId: string, dateStr: string) => void;
   deleteHabit: (id: string) => void;
 }
@@ -37,11 +38,41 @@ export const useHabitStore = create<HabitStoreState>()(
 
         habitsApi.createHabit({
           title: habit.title,
+          description: habit.description,
           category: habit.category,
-          targetDays: habit.targetDays,
+          icon: habit.icon,
+          timeFrom: habit.timeFrom,
+          timeTo: habit.timeTo,
+          reminderEnabled: habit.reminderEnabled ?? (!!habit.timeFrom),
+          reminderTime: habit.timeFrom || undefined,
+          targetDays: habit.targetDays || [0, 1, 2, 3, 4, 5, 6],
         }).then(() => {
           useAnalyticsStore.getState().fetchAnalytics();
         }).catch(() => {});
+      },
+
+      updateHabit: (id, updates) => {
+        set(state => ({
+          habits: state.habits.map(h => (h.id === id ? { ...h, ...updates } : h))
+        }));
+        toast.success('Habit updated successfully!');
+
+        const numId = parseInt(id.replace(/\D/g, ''), 10);
+        if (!isNaN(numId)) {
+          habitsApi.updateHabit(numId, {
+            title: updates.title,
+            description: updates.description,
+            category: updates.category,
+            icon: updates.icon,
+            timeFrom: updates.timeFrom,
+            timeTo: updates.timeTo,
+            reminderEnabled: updates.reminderEnabled ?? (!!updates.timeFrom),
+            reminderTime: updates.timeFrom || undefined,
+            targetDays: updates.targetDays,
+          }).then(() => {
+            useAnalyticsStore.getState().fetchAnalytics();
+          }).catch(() => {});
+        }
       },
 
       toggleHabitForDate: (habitId, dateStr) => {

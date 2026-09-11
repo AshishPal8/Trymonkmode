@@ -13,7 +13,8 @@ import {
   Heart,
   Briefcase,
   Trash2,
-  Sparkles
+  Sparkles,
+  Pencil
 } from 'lucide-react';
 import { formatDatePretty, getTodayDateString } from '@/lib/utils';
 import { HabitItem } from '@/lib/types';
@@ -23,21 +24,43 @@ import { CustomSelect } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
 
+interface HabitFormData {
+  title: string;
+  description: string;
+  category: HabitItem['category'];
+  priority: HabitItem['priority'];
+  timeFrom: string;
+  timeTo: string;
+  icon: string;
+}
+
+const INITIAL_HABIT_FORM: HabitFormData = {
+  title: '',
+  description: '',
+  category: 'Health',
+  priority: 'high',
+  timeFrom: '07:00',
+  timeTo: '07:30',
+  icon: 'Zap',
+};
+
 export function HabitsView() {
-  const { habits, addHabit, toggleHabitForDate, deleteHabit } = useApp();
+  const { habits, addHabit, updateHabit, toggleHabitForDate, deleteHabit } = useApp();
 
   const todayStr = getTodayDateString();
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-  const [showAddModal, setShowAddModal] = useState(false);
 
-  // New Habit State
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<HabitItem['category']>('Health');
-  const [priority, setPriority] = useState<HabitItem['priority']>('high');
-  const [timeFrom, setTimeFrom] = useState('07:00');
-  const [timeTo, setTimeTo] = useState('07:30');
-  const [icon, setIcon] = useState('Zap');
+  // Single Unified Modal State & Form Object State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<HabitItem | null>(null);
+  const [habitForm, setHabitForm] = useState<HabitFormData>(INITIAL_HABIT_FORM);
+
+  const updateFormField = <K extends keyof HabitFormData>(
+    key: K,
+    value: HabitFormData[K]
+  ) => {
+    setHabitForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -61,25 +84,60 @@ export function HabitsView() {
 
   const rollingDays = getDaysArray();
 
-  const handleCreateHabit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const openCreateModal = () => {
+    setEditingHabit(null);
+    setHabitForm(INITIAL_HABIT_FORM);
+    setIsModalOpen(true);
+  };
 
-    addHabit({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      category,
-      priority,
-      timeFrom,
-      timeTo,
-      icon,
-      color: '#0052FF',
-      targetDays: [0, 1, 2, 3, 4, 5, 6]
+  const openEditModal = (habit: HabitItem) => {
+    setEditingHabit(habit);
+    setHabitForm({
+      title: habit.title,
+      description: habit.description || '',
+      category: habit.category,
+      priority: habit.priority,
+      timeFrom: habit.timeFrom,
+      timeTo: habit.timeTo,
+      icon: habit.icon,
     });
+    setIsModalOpen(true);
+  };
 
-    setTitle('');
-    setDescription('');
-    setShowAddModal(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingHabit(null);
+  };
+
+  const handleSaveHabit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!habitForm.title.trim()) return;
+
+    if (editingHabit) {
+      updateHabit(editingHabit.id, {
+        title: habitForm.title.trim(),
+        description: habitForm.description.trim() || undefined,
+        category: habitForm.category,
+        priority: habitForm.priority,
+        timeFrom: habitForm.timeFrom,
+        timeTo: habitForm.timeTo,
+        icon: habitForm.icon,
+      });
+    } else {
+      addHabit({
+        title: habitForm.title.trim(),
+        description: habitForm.description.trim() || undefined,
+        category: habitForm.category,
+        priority: habitForm.priority,
+        timeFrom: habitForm.timeFrom,
+        timeTo: habitForm.timeTo,
+        icon: habitForm.icon,
+        color: '#0052FF',
+        targetDays: [0, 1, 2, 3, 4, 5, 6]
+      });
+    }
+
+    closeModal();
   };
 
   const getCategoryIcon = (ic: string) => {
@@ -111,7 +169,7 @@ export function HabitsView() {
         </div>
 
         <Button
-          onClick={() => setShowAddModal(true)}
+          onClick={openCreateModal}
           className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-4 py-2 shadow-sm transition transform active:scale-95 cursor-pointer flex items-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -178,7 +236,7 @@ export function HabitsView() {
             </div>
             <Button
               type="button"
-              onClick={() => setShowAddModal(true)}
+              onClick={openCreateModal}
               className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-4 py-2 shadow-sm cursor-pointer inline-flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -191,11 +249,11 @@ export function HabitsView() {
             return (
               <div
                 key={habit.id}
-                className={`p-3.5 sm:p-4 rounded-2xl ios-card transition flex items-center justify-between gap-3 ${
+                className={`p-3.5 sm:p-4 rounded-2xl ios-card transition flex items-center justify-between gap-3 hover:border-primary/30 ${
                   isDone ? 'opacity-50' : ''
                 }`}
               >
-                {/* Left: Circular Checkbox + Icon + Title/Details (Matching Tasks View) */}
+                {/* Left: Circular Checkbox + Icon + Title/Details */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <button
                     onClick={() => toggleHabitForDate(habit.id, selectedDate)}
@@ -214,7 +272,7 @@ export function HabitsView() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4
                         className={`text-xs sm:text-sm font-semibold truncate ${
                           isDone ? 'line-through text-muted-foreground' : 'text-card-foreground'
@@ -240,31 +298,53 @@ export function HabitsView() {
                   </div>
                 </div>
 
-                {/* Right: Delete Action */}
-                <button
-                  onClick={() => deleteHabit(habit.id)}
-                  className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-lg transition cursor-pointer shrink-0"
-                  aria-label="Delete habit"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {/* Right: Edit & Delete Actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => openEditModal(habit)}
+                    className="p-1.5 text-muted-foreground hover:text-[#0052FF] hover:bg-[#0052FF]/10 rounded-lg transition cursor-pointer"
+                    aria-label="Edit habit"
+                    title="Edit Habit"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+
+                  <button
+                    onClick={() => deleteHabit(habit.id)}
+                    className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                    aria-label="Delete habit"
+                    title="Delete Habit"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             );
           })
         )}
       </div>
 
-      {/* Add Habit Modal */}
+      {/* SINGLE UNIFIED ADD / EDIT HABIT MODAL */}
       <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Add Daily Habit"
-        description="Establish non-negotiable rituals and build long-term momentum."
-        icon={<Sparkles className="w-4 h-4" />}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingHabit ? "Edit Daily Habit" : "Add Daily Habit"}
+        description={
+          editingHabit
+            ? "Update habit rituals, schedules, and categories."
+            : "Establish non-negotiable rituals and build long-term momentum."
+        }
+        icon={
+          editingHabit ? (
+            <Pencil className="w-4 h-4" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )
+        }
         topAccentColor="#0052FF"
         maxWidth="md"
       >
-        <form onSubmit={handleCreateHabit} className="space-y-3.5 pt-1">
+        <form onSubmit={handleSaveHabit} className="space-y-3.5 pt-1">
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1">
               Habit Title *
@@ -273,8 +353,8 @@ export function HabitsView() {
               type="text"
               required
               placeholder="e.g. 90 Minutes Deep Work Session"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={habitForm.title}
+              onChange={(e) => updateFormField("title", e.target.value)}
             />
           </div>
 
@@ -285,8 +365,8 @@ export function HabitsView() {
             <Input
               type="text"
               placeholder="e.g. High-velocity uninterrupted coding"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={habitForm.description}
+              onChange={(e) => updateFormField("description", e.target.value)}
             />
           </div>
 
@@ -296,8 +376,10 @@ export function HabitsView() {
                 Category
               </label>
               <CustomSelect
-                value={category}
-                onChange={(val) => setCategory(val as HabitItem["category"])}
+                value={habitForm.category}
+                onChange={(val) =>
+                  updateFormField("category", val as HabitItem["category"])
+                }
                 options={[
                   { value: "Work", label: "Work" },
                   { value: "Health", label: "Health" },
@@ -313,8 +395,8 @@ export function HabitsView() {
                 Icon
               </label>
               <CustomSelect
-                value={icon}
-                onChange={(val) => setIcon(val)}
+                value={habitForm.icon}
+                onChange={(val) => updateFormField("icon", val)}
                 options={[
                   { value: "Zap", label: "⚡ Energy" },
                   { value: "Droplet", label: "💧 Water/Hydration" },
@@ -334,8 +416,8 @@ export function HabitsView() {
               </label>
               <input
                 type="time"
-                value={timeFrom}
-                onChange={(e) => setTimeFrom(e.target.value)}
+                value={habitForm.timeFrom}
+                onChange={(e) => updateFormField("timeFrom", e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono transition"
               />
             </div>
@@ -346,8 +428,8 @@ export function HabitsView() {
               </label>
               <input
                 type="time"
-                value={timeTo}
-                onChange={(e) => setTimeTo(e.target.value)}
+                value={habitForm.timeTo}
+                onChange={(e) => updateFormField("timeTo", e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono transition"
               />
             </div>
@@ -356,7 +438,7 @@ export function HabitsView() {
           <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/60">
             <button
               type="button"
-              onClick={() => setShowAddModal(false)}
+              onClick={closeModal}
               className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
             >
               Cancel
@@ -365,7 +447,7 @@ export function HabitsView() {
               type="submit"
               className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-5 py-2 shadow-sm cursor-pointer"
             >
-              Add Habit
+              {editingHabit ? "Save Changes" : "Add Habit"}
             </Button>
           </div>
         </form>

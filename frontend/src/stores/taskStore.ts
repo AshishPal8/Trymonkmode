@@ -12,6 +12,7 @@ export interface TaskStoreState {
   tasks: TaskItem[];
   setTasks: (tasks: TaskItem[]) => void;
   addTask: (task: Omit<TaskItem, "id" | "createdAt">) => void;
+  updateTask: (id: string, updates: Partial<TaskItem>) => void;
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   updateTaskQuadrant: (id: string, quadrant: TaskItem["quadrant"]) => void;
@@ -51,6 +52,33 @@ export const useTaskStore = create<TaskStoreState>()(
             useAnalyticsStore.getState().fetchAnalytics();
           })
           .catch(() => {});
+      },
+
+      updateTask: (id, updates) => {
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+        }));
+        toast.success("Task updated successfully!");
+
+        const numId = parseInt(id.replace(/\D/g, ""), 10);
+        if (!isNaN(numId)) {
+          tasksApi
+            .updateTask(numId, {
+              title: updates.title,
+              description: updates.description,
+              priority: updates.priority,
+              dueDate: updates.dueDate,
+              dueTime: updates.dueTime,
+              tags: updates.tags,
+              subtasks: updates.subtasks,
+              completed: updates.completed,
+              quadrant: updates.quadrant,
+            })
+            .then(() => {
+              useAnalyticsStore.getState().fetchAnalytics();
+            })
+            .catch(() => {});
+        }
       },
 
       toggleTask: (id) => {

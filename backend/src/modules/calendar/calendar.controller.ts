@@ -25,7 +25,8 @@ export async function getEventsHandler(req: Request, res: Response, next: NextFu
 
 export async function createEventHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    const event = await createEventService(req.user!.userId, req.body);
+    const clientTz = req.headers['x-timezone'] as string | undefined;
+    const event = await createEventService(req.user!.userId, req.body, clientTz);
     return sendResponse({
       res,
       statusCode: HttpStatus.CREATED,
@@ -40,7 +41,8 @@ export async function createEventHandler(req: Request, res: Response, next: Next
 export async function updateEventHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    const event = await updateEventService(req.user!.userId, id, req.body);
+    const clientTz = req.headers['x-timezone'] as string | undefined;
+    const event = await updateEventService(req.user!.userId, id, req.body, clientTz);
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,

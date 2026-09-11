@@ -24,6 +24,7 @@ export const tasks = pgTable('tasks', {
   tags: jsonb('tags').notNull().default([]),
   subtasks: jsonb('subtasks').notNull().default([]),
   completed: boolean('completed').notNull().default(false),
+  reminderSent: boolean('reminder_sent').notNull().default(false),
   quadrant: varchar('quadrant', { length: 50 }).notNull().default('notUrgent-important'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()

@@ -6,6 +6,12 @@ import { authApi, usersApi } from "@/lib/api";
 import { soundFX, triggerCelebrationConfetti } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 
+import {
+  unregisterFCMDeviceToken,
+  registerServiceWorker,
+} from "@/lib/notifications";
+import { requestAndRegisterFCMToken } from "@/lib/firebase";
+
 export const INITIAL_USER: UserProfile = {
   name: "",
   avatar: "",
@@ -73,9 +79,7 @@ export const useUserStore = create<UserStoreState>()(
           root.setAttribute("data-theme", themeMode);
         }
         if (syncBackend) {
-          usersApi
-            .updateProfile({ theme: themeMode })
-            .catch(() => {});
+          usersApi.updateProfile({ theme: themeMode }).catch(() => {});
         }
       },
       toggleTheme: () => {
@@ -106,10 +110,10 @@ export const useUserStore = create<UserStoreState>()(
           localStorage.removeItem("trymonk_token");
           localStorage.removeItem("trymonk_access_token");
           localStorage.removeItem("trymonk_refresh_token");
-          localStorage.removeItem("aura_access_token");
-          localStorage.removeItem("aura_refresh_token");
           localStorage.removeItem("trymonk_user_store");
         }
+
+        await unregisterFCMDeviceToken();
 
         set({
           isAuthenticated: false,
@@ -199,6 +203,13 @@ export const useUserStore = create<UserStoreState>()(
               u.theme === "light" || u.theme === "dark" ? u.theme : get().theme;
             get().setTheme(userTheme, false);
 
+            const clientTz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
+            const userTz = u.timezone && u.timezone !== 'UTC' ? u.timezone : clientTz;
+
+            if (!u.timezone || u.timezone === 'UTC') {
+              usersApi.updateProfile({ timezone: clientTz }).catch(() => {});
+            }
+
             set({
               isAuthenticated: true,
               isCheckingAuth: false,
@@ -209,7 +220,7 @@ export const useUserStore = create<UserStoreState>()(
                 bio: u.bio || "",
                 theme: userTheme,
                 favorites: u.favorites || [],
-                timezone: u.timezone || "UTC",
+                timezone: userTz,
                 notificationsEnabled: u.notificationsEnabled ?? true,
                 emailNotifications: u.emailNotifications ?? true,
                 soundEffects: u.soundEffects ?? true,
@@ -229,6 +240,11 @@ export const useUserStore = create<UserStoreState>()(
                   : "Recent",
               },
             });
+
+            // Automatically request/sync FCM device token for push notifications
+            if (typeof window !== "undefined" && (u.notificationsEnabled ?? true)) {
+              requestAndRegisterFCMToken().catch(() => {});
+            }
           } else {
             set({ isAuthenticated: false, isCheckingAuth: false });
           }

@@ -15,6 +15,7 @@ import {
   AdminPageRecord,
 } from "./components/AdminPagesTab";
 import { AdminBlogsTab } from "./components/AdminBlogsTab";
+import { AdminSystemSettingsTab } from "./components/AdminSystemSettingsTab";
 import {
   Users,
   Layers,
@@ -23,10 +24,11 @@ import {
   RefreshCw,
   Sparkles,
   BookOpen,
+  Cpu,
 } from "lucide-react";
 
 export function AdminView() {
-  const [activeTab, setActiveTab] = useState<"users" | "pages" | "blogs">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "pages" | "blogs" | "system">("users");
 
   // Users State
   const [usersList, setUsersList] = useState<AdminUserRecord[]>([]);
@@ -193,6 +195,12 @@ export function AdminView() {
             count: undefined,
             icon: BookOpen,
           },
+          {
+            id: "system",
+            label: "System & Crons",
+            count: undefined,
+            icon: Cpu,
+          },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -242,6 +250,8 @@ export function AdminView() {
       )}
 
       {activeTab === "blogs" && <AdminBlogsTab />}
+
+      {activeTab === "system" && <AdminSystemSettingsTab />}
     </ModuleContainer>
   );
 }

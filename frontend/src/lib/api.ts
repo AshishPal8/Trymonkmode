@@ -19,6 +19,12 @@ api.interceptors.request.use(
       if (token && config.headers && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      try {
+        const clientTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (clientTz && config.headers) {
+          config.headers['x-timezone'] = clientTz;
+        }
+      } catch {}
     }
     return config;
   },
@@ -221,4 +227,38 @@ export const uploadApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+};
+
+export const notificationsApi = {
+  registerDeviceToken: (fcmToken: string, deviceType: 'web' | 'ios' | 'android' = 'web') =>
+    api.post('/notifications/device-token', {
+      fcmToken,
+      deviceType,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined
+    }),
+  removeDeviceToken: (fcmToken: string) =>
+    api.delete('/notifications/device-token', { data: { fcmToken } }),
+  getDeviceTokens: () => api.get('/notifications/device-tokens'),
+  sendTestNotification: (title?: string, body?: string) =>
+    api.post('/notifications/test', { title, body }),
+};
+
+export interface SystemFlag {
+  id: number;
+  key: string;
+  value: string; // '1' (enabled) | '0' (disabled) or custom text
+  description?: string;
+  category: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const settingsApi = {
+  getAllFlags: () => api.get('/settings'),
+  getFlag: (key: string) => api.get(`/settings/${key}`),
+  createFlag: (data: { key: string; value: string; description?: string; category?: string }) =>
+    api.post('/settings', data),
+  updateFlag: (key: string, data: { value: string; description?: string; category?: string }) =>
+    api.patch(`/settings/${key}`, data),
+  deleteFlag: (key: string) => api.delete(`/settings/${key}`),
 };

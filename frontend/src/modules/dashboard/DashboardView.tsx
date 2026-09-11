@@ -14,6 +14,7 @@ import { AnalyticsMetricsBar } from './components/AnalyticsMetricsBar';
 import { PeakPerformanceCard } from './components/PeakPerformanceCard';
 import { WeeklyVelocityChart } from './components/WeeklyVelocityChart';
 import { HabitsAndCalendarWidget } from './components/HabitsAndCalendarWidget';
+import { DashboardEngagementWidgets } from './components/DashboardEngagementWidgets';
 
 export function DashboardView() {
   const {
@@ -79,6 +80,15 @@ export function DashboardView() {
             user={user}
             totalFocusHours={totalFocusHours}
             taskCompletionRate={taskCompletionRate}
+          />
+
+          {/* Daily Harmony Score, Stoic Quote & Micro-Quests */}
+          <DashboardEngagementWidgets
+            tasks={tasks}
+            habits={habits}
+            todayStr={todayStr}
+            todayFocusMinutes={todayFocusMinutes}
+            onNavigate={setActiveModule}
           />
 
           {/* Hero Featured Task Card */}

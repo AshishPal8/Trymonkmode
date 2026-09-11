@@ -11,9 +11,11 @@ import {
   CheckCircle2,
   ListTodo,
   Search,
+  Pencil,
+  X,
 } from "lucide-react";
 import { formatDatePretty, getTodayDateString } from "@/lib/utils";
-import { PriorityLevel } from "@/lib/types";
+import { PriorityLevel, TaskItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ModuleContainer } from "@/components/layout/ModuleContainer";
 import { CustomSelect } from "@/components/ui/select";
@@ -21,23 +23,44 @@ import { CustomDatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
+interface TaskFormData {
+  title: string;
+  description: string;
+  priority: PriorityLevel;
+  dueDate: string;
+  dueTime: string;
+  tags: string;
+}
+
+const INITIAL_TASK_FORM: TaskFormData = {
+  title: "",
+  description: "",
+  priority: "P1",
+  dueDate: getTodayDateString(),
+  dueTime: "",
+  tags: "#Work",
+};
+
 export function TasksView() {
-  const { tasks, addTask, toggleTask, deleteTask } = useApp();
+  const { tasks, addTask, updateTask, toggleTask, deleteTask } = useApp();
 
   const [activeTab, setActiveTab] = useState<
     "today" | "upcoming" | "inbox" | "completed"
   >("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [showAddModal, setShowAddModal] = useState(false);
 
-  // New task state
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
-  const [priority, setPriority] = useState<PriorityLevel>("P1");
-  const [dueDate, setDueDate] = useState(getTodayDateString());
-  const [dueTime, setDueTime] = useState("12:00");
-  const [tags, setTags] = useState("#Work");
+  // Single Unified Modal & Consolidated Form State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
+  const [taskForm, setTaskForm] = useState<TaskFormData>(INITIAL_TASK_FORM);
+
+  const updateFormField = <K extends keyof TaskFormData>(
+    key: K,
+    value: TaskFormData[K]
+  ) => {
+    setTaskForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   const todayStr = getTodayDateString();
 
@@ -56,26 +79,69 @@ export function TasksView() {
     return true;
   });
 
-  const handleCreateTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-
-    addTask({
-      title: title.trim(),
-      description: desc.trim() || undefined,
-      priority,
-      dueDate,
-      dueTime,
-      category: "Work",
-      tags: tags.split(" ").filter(Boolean),
-      subtasks: [],
-      completed: false,
-      quadrant: priority === "P1" ? "urgent-important" : "notUrgent-important",
+  const openCreateModal = () => {
+    setEditingTask(null);
+    setTaskForm({
+      ...INITIAL_TASK_FORM,
+      dueDate: getTodayDateString(),
     });
+    setIsModalOpen(true);
+  };
 
-    setTitle("");
-    setDesc("");
-    setShowAddModal(false);
+  const openEditModal = (task: TaskItem) => {
+    setEditingTask(task);
+    setTaskForm({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      dueDate: task.dueDate || getTodayDateString(),
+      dueTime: task.dueTime || "",
+      tags: task.tags?.join(" ") || "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleSaveTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskForm.title.trim()) return;
+
+    if (editingTask) {
+      updateTask(editingTask.id, {
+        title: taskForm.title.trim(),
+        description: taskForm.description.trim() || undefined,
+        priority: taskForm.priority,
+        dueDate: taskForm.dueDate,
+        dueTime: taskForm.dueTime.trim() || undefined,
+        tags: taskForm.tags.split(" ").filter(Boolean),
+        quadrant:
+          taskForm.priority === "P1"
+            ? "urgent-important"
+            : "notUrgent-important",
+      });
+    } else {
+      addTask({
+        title: taskForm.title.trim(),
+        description: taskForm.description.trim() || undefined,
+        priority: taskForm.priority,
+        dueDate: taskForm.dueDate,
+        dueTime: taskForm.dueTime.trim() || undefined,
+        category: "Work",
+        tags: taskForm.tags.split(" ").filter(Boolean),
+        subtasks: [],
+        completed: false,
+        quadrant:
+          taskForm.priority === "P1"
+            ? "urgent-important"
+            : "notUrgent-important",
+      });
+    }
+
+    closeModal();
   };
 
   const priorityColors: Record<PriorityLevel, string> = {
@@ -99,7 +165,7 @@ export function TasksView() {
         </div>
 
         <Button
-          onClick={() => setShowAddModal(true)}
+          onClick={openCreateModal}
           className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl px-4 py-2 shadow-sm transition transform active:scale-95 cursor-pointer flex items-center gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -152,7 +218,11 @@ export function TasksView() {
                 <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    isActive
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
                 >
                   {tab.count}
                 </span>
@@ -206,7 +276,7 @@ export function TasksView() {
             </div>
             <Button
               type="button"
-              onClick={() => setShowAddModal(true)}
+              onClick={openCreateModal}
               className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-4 py-2 shadow-sm cursor-pointer inline-flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -217,7 +287,7 @@ export function TasksView() {
           filteredTasks.map((task) => (
             <div
               key={task.id}
-              className={`p-3.5 rounded-2xl ios-card transition flex items-center justify-between gap-3 ${
+              className={`p-3.5 rounded-2xl ios-card transition flex items-center justify-between gap-3 hover:border-primary/30 ${
                 task.completed ? "opacity-50" : ""
               }`}
             >
@@ -230,6 +300,7 @@ export function TasksView() {
                       ? "bg-[#22C55E] text-white"
                       : "border-2 border-muted-foreground hover:border-[#0052FF]"
                   }`}
+                  aria-label="Toggle task completion"
                 >
                   {task.completed && (
                     <CheckCircle2 className="w-3.5 h-3.5 fill-current" />
@@ -237,9 +308,9 @@ export function TasksView() {
                 </button>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className={`w-2 h-2 rounded-full ${priorityColors[task.priority]}`}
+                      className={`w-2 h-2 rounded-full shrink-0 ${priorityColors[task.priority]}`}
                     />
                     <span
                       className={`text-xs sm:text-sm font-medium truncate ${
@@ -250,6 +321,12 @@ export function TasksView() {
                     >
                       {task.title}
                     </span>
+                    {task.dueTime && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-mono flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        {task.dueTime}
+                      </span>
+                    )}
                   </div>
 
                   {task.description && (
@@ -260,15 +337,26 @@ export function TasksView() {
                 </div>
               </div>
 
-              {/* Due Date + Delete Action */}
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-[11px] font-mono text-muted-foreground">
+              {/* Due Date + Edit & Delete Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-mono text-muted-foreground hidden sm:inline-block">
                   {formatDatePretty(task.dueDate)}
                 </span>
 
                 <button
+                  onClick={() => openEditModal(task)}
+                  className="p-1.5 text-muted-foreground hover:text-[#0052FF] hover:bg-[#0052FF]/10 rounded-lg transition cursor-pointer"
+                  title="Edit Task"
+                  aria-label="Edit Task"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+
+                <button
                   onClick={() => deleteTask(task.id)}
-                  className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-lg transition cursor-pointer"
+                  className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                  title="Delete Task"
+                  aria-label="Delete Task"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -278,17 +366,27 @@ export function TasksView() {
         )}
       </div>
 
-      {/* Add Task Modal */}
+      {/* SINGLE UNIFIED ADD / EDIT TASK MODAL */}
       <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Create New Task"
-        description="Organize your daily sprint deliverables with priorities and deadlines."
-        icon={<ListTodo className="w-4 h-4" />}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingTask ? "Edit Task" : "Create New Task"}
+        description={
+          editingTask
+            ? "Update your task details, priorities, and scheduled reminder times."
+            : "Organize your daily sprint deliverables with priorities and deadlines."
+        }
+        icon={
+          editingTask ? (
+            <Pencil className="w-4 h-4" />
+          ) : (
+            <ListTodo className="w-4 h-4" />
+          )
+        }
         topAccentColor="#0052FF"
         maxWidth="md"
       >
-        <form onSubmit={handleCreateTask} className="space-y-3.5 pt-1">
+        <form onSubmit={handleSaveTask} className="space-y-3.5 pt-1">
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1">
               Title *
@@ -297,8 +395,8 @@ export function TasksView() {
               type="text"
               required
               placeholder="e.g. Design Microservice Architecture"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={taskForm.title}
+              onChange={(e) => updateFormField("title", e.target.value)}
             />
           </div>
 
@@ -309,8 +407,8 @@ export function TasksView() {
             <textarea
               rows={2}
               placeholder="Key sub-deliverables or context..."
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
+              value={taskForm.description}
+              onChange={(e) => updateFormField("description", e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground transition resize-none"
             />
           </div>
@@ -321,8 +419,10 @@ export function TasksView() {
                 Priority
               </label>
               <CustomSelect
-                value={priority}
-                onChange={(val) => setPriority(val as PriorityLevel)}
+                value={taskForm.priority}
+                onChange={(val) =>
+                  updateFormField("priority", val as PriorityLevel)
+                }
                 options={[
                   { value: "P1", label: "P1 Urgent" },
                   { value: "P2", label: "P2 High" },
@@ -336,26 +436,55 @@ export function TasksView() {
               <label className="block text-xs font-semibold text-muted-foreground mb-1">
                 Due Date
               </label>
-              <CustomDatePicker value={dueDate} onChange={setDueDate} />
+              <CustomDatePicker
+                value={taskForm.dueDate}
+                onChange={(val) => updateFormField("dueDate", val)}
+              />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1">
-              Tags
-            </label>
-            <Input
-              type="text"
-              placeholder="#Work #SystemDesign"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-            />
+          {/* Optional Time Selection */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  Time (Optional)
+                </label>
+                {taskForm.dueTime && (
+                  <button
+                    type="button"
+                    onClick={() => updateFormField("dueTime", "")}
+                    className="text-[10px] text-muted-foreground hover:text-rose-500 transition flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <X className="w-2.5 h-2.5" /> Clear
+                  </button>
+                )}
+              </div>
+              <input
+                type="time"
+                value={taskForm.dueTime}
+                onChange={(e) => updateFormField("dueTime", e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-muted/50 border border-border text-xs focus:outline-none focus:ring-2 focus:ring-[#0052FF] text-foreground font-mono transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Tags
+              </label>
+              <Input
+                type="text"
+                placeholder="#Work #Sprint"
+                value={taskForm.tags}
+                onChange={(e) => updateFormField("tags", e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/60">
             <button
               type="button"
-              onClick={() => setShowAddModal(false)}
+              onClick={closeModal}
               className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
             >
               Cancel
@@ -364,7 +493,7 @@ export function TasksView() {
               type="submit"
               className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-semibold rounded-xl px-5 py-2 shadow-sm cursor-pointer"
             >
-              Create Task
+              {editingTask ? "Save Changes" : "Create Task"}
             </Button>
           </div>
         </form>
