@@ -127,9 +127,13 @@ export function UserProfileModal() {
           const perm = await Notification.requestPermission();
           if (perm === "granted") {
             await requestAndRegisterFCMToken();
-            toast.success("Push notifications enabled & device token registered!");
+            toast.success(
+              "Push notifications enabled & device token registered!",
+            );
           } else {
-            toast.warning("Please also allow notifications in browser permissions or OS settings.");
+            toast.warning(
+              "Please also allow notifications in browser permissions or OS settings.",
+            );
           }
         } catch (err) {
           console.warn("Permission request error:", err);
@@ -328,7 +332,9 @@ export function UserProfileModal() {
                   aspectRatio="square"
                 />
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="font-semibold text-foreground">Click to upload photo</p>
+                  <p className="font-semibold text-foreground">
+                    Click to upload photo
+                  </p>
                   <p className="text-[11px] text-muted-foreground">
                     PNG, JPG, or WebP up to 10MB.
                   </p>
@@ -413,14 +419,17 @@ export function UserProfileModal() {
                         Push Notifications
                       </h4>
                       <p className="text-[11px] text-muted-foreground">
-                        Receive focus timer, scheduled task, and streak reminders
+                        Receive focus timer, scheduled task, and streak
+                        reminders
                       </p>
                     </div>
                   </div>
                   <input
                     type="checkbox"
                     checked={notificationsEnabled}
-                    onChange={(e) => handleToggleNotifications(e.target.checked)}
+                    onChange={(e) =>
+                      handleToggleNotifications(e.target.checked)
+                    }
                     className="w-4 h-4 accent-[#0052FF] cursor-pointer"
                   />
                 </div>
@@ -518,7 +527,8 @@ export function UserProfileModal() {
                       Audio & Sound FX
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
-                      Play ambient bells on task completion, timer bells, and XP level ups
+                      Play ambient bells on task completion, timer bells, and XP
+                      level ups
                     </p>
                   </div>
                 </div>
