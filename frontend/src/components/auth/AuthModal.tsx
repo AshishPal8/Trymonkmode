@@ -48,10 +48,7 @@ export function AuthModal({
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    const backendUrl =
-      process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1\/?$/, "") ||
-      "http://localhost:4000";
-    window.location.href = `${backendUrl}/api/google`;
+    window.location.href = "/api/google";
   };
 
   /* 
