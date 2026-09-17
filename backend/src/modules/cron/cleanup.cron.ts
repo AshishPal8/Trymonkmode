@@ -7,9 +7,11 @@ import { isFlagEnabled } from "../settings/settings.service.js";
 let cleanupTask: ScheduledTask | null = null;
 
 async function processDailyCleanup() {
-  const isEnabled = await isFlagEnabled('cleanup_cron', true);
+  const isEnabled = await isFlagEnabled("cleanup_cron", true);
   if (!isEnabled) {
-    console.log("⏸️ [Cron:Cleanup] Cleanup Cron is DISABLED in system_settings (cleanup_cron = 0). Skipping midnight cleanup.");
+    console.log(
+      "⏸️ [Cron:Cleanup] Cleanup Cron is DISABLED in system_settings (cleanup_cron = 0). Skipping midnight cleanup.",
+    );
     return;
   }
 

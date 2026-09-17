@@ -1,25 +1,37 @@
-import { eq, and } from 'drizzle-orm';
-import { db } from '../../config/db.js';
-import { calendarEvents, userSettings } from '../../db/schema.js';
-import { NotFoundError } from '../../utils/errors.js';
-import type { CreateCalendarEventInput, UpdateCalendarEventInput } from './calendar.schema.js';
+import { eq, and } from "drizzle-orm";
+import { db } from "../../config/db.js";
+import { calendarEvents, userSettings } from "../../db/schema.js";
+import { NotFoundError } from "../../utils/errors.js";
+import type {
+  CreateCalendarEventInput,
+  UpdateCalendarEventInput,
+} from "./calendar.schema.js";
 import {
   scheduleEventReminderInMemory,
   cancelEventReminder,
-} from '../cron/reminders.cron.js';
+} from "../cron/reminders.cron.js";
 
-async function getUserTimezone(userId: number, requestTz?: string): Promise<string> {
-  const validReqTz = requestTz && requestTz.trim() && requestTz !== 'UTC' ? requestTz.trim() : null;
+async function getUserTimezone(
+  userId: number,
+  requestTz?: string,
+): Promise<string> {
+  const validReqTz =
+    requestTz && requestTz.trim() && requestTz !== "UTC"
+      ? requestTz.trim()
+      : null;
   const [settings] = await db
     .select({ timezone: userSettings.timezone })
     .from(userSettings)
     .where(eq(userSettings.userId, userId))
     .limit(1);
 
-  const dbTz = settings?.timezone && settings.timezone !== 'UTC' ? settings.timezone : null;
-  const resolvedTz = validReqTz || dbTz || 'Asia/Kolkata';
+  const dbTz =
+    settings?.timezone && settings.timezone !== "UTC"
+      ? settings.timezone
+      : null;
+  const resolvedTz = validReqTz || dbTz || "Asia/Kolkata";
 
-  if (validReqTz && (!settings?.timezone || settings.timezone === 'UTC')) {
+  if (validReqTz && (!settings?.timezone || settings.timezone === "UTC")) {
     db.update(userSettings)
       .set({ timezone: validReqTz, updatedAt: new Date() })
       .where(eq(userSettings.userId, userId))
@@ -41,7 +53,11 @@ export async function getEventsService(userId: number, dateStr?: string) {
     .orderBy(calendarEvents.date, calendarEvents.startTime);
 }
 
-export async function createEventService(userId: number, input: CreateCalendarEventInput, clientTz?: string) {
+export async function createEventService(
+  userId: number,
+  input: CreateCalendarEventInput,
+  clientTz?: string,
+) {
   const [created] = await db
     .insert(calendarEvents)
     .values({
@@ -62,7 +78,12 @@ export async function createEventService(userId: number, input: CreateCalendarEv
   return created;
 }
 
-export async function updateEventService(userId: number, eventId: number, input: UpdateCalendarEventInput, clientTz?: string) {
+export async function updateEventService(
+  userId: number,
+  eventId: number,
+  input: UpdateCalendarEventInput,
+  clientTz?: string,
+) {
   const updateData: any = {
     ...input,
     updatedAt: new Date(),
@@ -75,11 +96,13 @@ export async function updateEventService(userId: number, eventId: number, input:
   const [updated] = await db
     .update(calendarEvents)
     .set(updateData)
-    .where(and(eq(calendarEvents.id, eventId), eq(calendarEvents.userId, userId)))
+    .where(
+      and(eq(calendarEvents.id, eventId), eq(calendarEvents.userId, userId)),
+    )
     .returning();
 
   if (!updated) {
-    throw new NotFoundError('Calendar event not found.');
+    throw new NotFoundError("Calendar event not found.");
   }
 
   getUserTimezone(userId, clientTz).then((tz) => {
@@ -94,12 +117,14 @@ export async function deleteEventService(userId: number, eventId: number) {
 
   const [deleted] = await db
     .delete(calendarEvents)
-    .where(and(eq(calendarEvents.id, eventId), eq(calendarEvents.userId, userId)))
+    .where(
+      and(eq(calendarEvents.id, eventId), eq(calendarEvents.userId, userId)),
+    )
     .returning();
 
   if (!deleted) {
-    throw new NotFoundError('Calendar event not found.');
+    throw new NotFoundError("Calendar event not found.");
   }
 
-  return { message: 'Calendar event deleted successfully.' };
+  return { message: "Calendar event deleted successfully." };
 }

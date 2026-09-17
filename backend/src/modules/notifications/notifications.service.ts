@@ -7,7 +7,11 @@ import {
 import { getMessaging, type SendResponse } from "firebase-admin/messaging";
 import { eq, and, inArray } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { userDeviceTokens, notificationLogs, userSettings } from "../../db/schema.js";
+import {
+  userDeviceTokens,
+  notificationLogs,
+  userSettings,
+} from "../../db/schema.js";
 import type { RegisterDeviceTokenInput } from "./notifications.schema.js";
 
 let isFirebaseInitialized = false;
@@ -217,7 +221,11 @@ export async function sendPushNotificationToUser(
       response.responses.forEach((resp: SendResponse, idx: number) => {
         if (!resp.success) {
           const errCode = resp.error?.code;
-          console.warn(`⚠️ [Notifications] Token ${idx} delivery failed:`, resp.error?.message, resp.error?.code);
+          console.warn(
+            `⚠️ [Notifications] Token ${idx} delivery failed:`,
+            resp.error?.message,
+            resp.error?.code,
+          );
           if (
             errCode === "messaging/registration-token-not-registered" ||
             errCode === "messaging/invalid-registration-token" ||

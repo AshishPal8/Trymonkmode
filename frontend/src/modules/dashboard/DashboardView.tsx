@@ -79,6 +79,7 @@ export function DashboardView() {
           <AnalyticsMetricsBar
             user={user}
             totalFocusHours={totalFocusHours}
+            todayFocusMinutes={todayFocusMinutes}
             taskCompletionRate={taskCompletionRate}
           />
 

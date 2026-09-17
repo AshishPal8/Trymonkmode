@@ -7,12 +7,14 @@ import { UserProfile } from '@/lib/types';
 interface AnalyticsMetricsBarProps {
   user: UserProfile;
   totalFocusHours: string;
+  todayFocusMinutes?: number;
   taskCompletionRate: number;
 }
 
 export function AnalyticsMetricsBar({
   user,
   totalFocusHours,
+  todayFocusMinutes = 0,
   taskCompletionRate
 }: AnalyticsMetricsBarProps) {
   const xpPercent = Math.min(100, Math.round((user.xp / (user.xpToNextLevel || 1000)) * 100));
@@ -31,19 +33,22 @@ export function AnalyticsMetricsBar({
       ? 'text-[#0052FF]'
       : 'text-muted-foreground';
 
+  const hours = Math.floor(todayFocusMinutes / 60);
+  const mins = todayFocusMinutes % 60;
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
       {/* Focus Hours */}
       <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl ios-card shadow-sm">
         <div className="flex items-center justify-between text-muted-foreground mb-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider">Focus Time</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider">Today&apos;s Focus</span>
           <Clock className="w-4 h-4 text-[#0052FF]" />
         </div>
         <div className="text-2xl sm:text-3xl font-bold text-card-foreground font-mono">
-          {totalFocusHours} <span className="text-xs font-normal text-muted-foreground">hrs</span>
+          {hours}h {mins}m
         </div>
-        <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-0.5 mt-1">
-          <ArrowUpRight className="w-3.5 h-3.5 text-[#0052FF]" /> Tracked deep work
+        <span className="text-[11px] font-semibold text-[#0052FF] flex items-center gap-0.5 mt-1">
+          <ArrowUpRight className="w-3.5 h-3.5" /> {totalFocusHours}h all-time
         </span>
       </div>
 

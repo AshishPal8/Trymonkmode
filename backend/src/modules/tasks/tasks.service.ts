@@ -8,19 +8,28 @@ import {
   cancelTaskReminder,
 } from "../cron/reminders.cron.js";
 
-async function getUserTimezone(userId: number, requestTz?: string): Promise<string> {
-  const validReqTz = requestTz && requestTz.trim() && requestTz !== 'UTC' ? requestTz.trim() : null;
+async function getUserTimezone(
+  userId: number,
+  requestTz?: string,
+): Promise<string> {
+  const validReqTz =
+    requestTz && requestTz.trim() && requestTz !== "UTC"
+      ? requestTz.trim()
+      : null;
   const [settings] = await db
     .select({ timezone: userSettings.timezone })
     .from(userSettings)
     .where(eq(userSettings.userId, userId))
     .limit(1);
 
-  const dbTz = settings?.timezone && settings.timezone !== 'UTC' ? settings.timezone : null;
-  const resolvedTz = validReqTz || dbTz || 'Asia/Kolkata';
+  const dbTz =
+    settings?.timezone && settings.timezone !== "UTC"
+      ? settings.timezone
+      : null;
+  const resolvedTz = validReqTz || dbTz || "Asia/Kolkata";
 
   // Automatically sync to userSettings in DB if it was still default 'UTC'
-  if (validReqTz && (!settings?.timezone || settings.timezone === 'UTC')) {
+  if (validReqTz && (!settings?.timezone || settings.timezone === "UTC")) {
     db.update(userSettings)
       .set({ timezone: validReqTz, updatedAt: new Date() })
       .where(eq(userSettings.userId, userId))

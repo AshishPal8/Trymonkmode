@@ -1,21 +1,25 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 import {
   getEventsService,
   createEventService,
   updateEventService,
   deleteEventService,
-} from './calendar.service.js';
-import { sendResponse } from '../../utils/apiResponse.js';
-import { HttpStatus } from '../../utils/httpStatus.js';
+} from "./calendar.service.js";
+import { sendResponse } from "../../utils/apiResponse.js";
+import { HttpStatus } from "../../utils/httpStatus.js";
 
-export async function getEventsHandler(req: Request, res: Response, next: NextFunction) {
+export async function getEventsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const date = req.query.date as string | undefined;
     const events = await getEventsService(req.user!.userId, date);
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,
-      message: 'Calendar events retrieved successfully.',
+      message: "Calendar events retrieved successfully.",
       data: events,
     });
   } catch (error) {
@@ -23,14 +27,22 @@ export async function getEventsHandler(req: Request, res: Response, next: NextFu
   }
 }
 
-export async function createEventHandler(req: Request, res: Response, next: NextFunction) {
+export async function createEventHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
-    const clientTz = req.headers['x-timezone'] as string | undefined;
-    const event = await createEventService(req.user!.userId, req.body, clientTz);
+    const clientTz = req.headers["x-timezone"] as string | undefined;
+    const event = await createEventService(
+      req.user!.userId,
+      req.body,
+      clientTz,
+    );
     return sendResponse({
       res,
       statusCode: HttpStatus.CREATED,
-      message: 'Calendar event created successfully.',
+      message: "Calendar event created successfully.",
       data: event,
     });
   } catch (error) {
@@ -38,15 +50,24 @@ export async function createEventHandler(req: Request, res: Response, next: Next
   }
 }
 
-export async function updateEventHandler(req: Request, res: Response, next: NextFunction) {
+export async function updateEventHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    const clientTz = req.headers['x-timezone'] as string | undefined;
-    const event = await updateEventService(req.user!.userId, id, req.body, clientTz);
+    const clientTz = req.headers["x-timezone"] as string | undefined;
+    const event = await updateEventService(
+      req.user!.userId,
+      id,
+      req.body,
+      clientTz,
+    );
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,
-      message: 'Calendar event updated successfully.',
+      message: "Calendar event updated successfully.",
       data: event,
     });
   } catch (error) {
@@ -54,7 +75,11 @@ export async function updateEventHandler(req: Request, res: Response, next: Next
   }
 }
 
-export async function deleteEventHandler(req: Request, res: Response, next: NextFunction) {
+export async function deleteEventHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   try {
     const id = parseInt(req.params.id as string, 10);
     const result = await deleteEventService(req.user!.userId, id);

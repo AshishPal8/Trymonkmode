@@ -1,7 +1,7 @@
-import { app } from './app.js';
-import { env } from './config/env.js';
-import { connectDB } from './config/db.js';
-import { startAllCrons, stopAllCrons } from './modules/cron/index.js';
+import { app } from "./app.js";
+import { env } from "./config/env.js";
+import { connectDB } from "./config/db.js";
+import { startAllCrons, stopAllCrons } from "./modules/cron/index.js";
 
 async function startServer() {
   try {
@@ -21,15 +21,15 @@ async function startServer() {
       console.log(`Received ${signal}. Shutting down gracefully...`);
       stopAllCrons();
       server.close(() => {
-        console.log('HTTP server closed.');
+        console.log("HTTP server closed.");
         process.exit(0);
       });
     };
 
-    process.on('SIGINT', () => handleShutdown('SIGINT'));
-    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+    process.on("SIGINT", () => handleShutdown("SIGINT"));
+    process.on("SIGTERM", () => handleShutdown("SIGTERM"));
   } catch (error) {
-    console.error('Fatal error during server startup:', error);
+    console.error("Fatal error during server startup:", error);
     process.exit(1);
   }
 }

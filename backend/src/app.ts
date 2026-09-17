@@ -9,7 +9,11 @@ import { sendResponse } from "./utils/apiResponse.js";
 import { HttpStatus } from "./utils/httpStatus.js";
 
 import { authRoutes } from "./modules/auth/auth.route.js";
-import { googleCallback, googleLogin } from "./modules/auth/auth.controller.js";
+import {
+  googleCallback,
+  googleLogin,
+  googleNativeAuthHandler,
+} from "./modules/auth/auth.controller.js";
 import { userRoutes } from "./modules/user/user.route.js";
 import { taskRoutes } from "./modules/tasks/tasks.route.js";
 import { calendarRoutes } from "./modules/calendar/calendar.route.js";
@@ -88,6 +92,7 @@ app.get("/health", (_req, res) => {
 
 app.get("/api/google", googleLogin);
 app.get("/api/google/callback", googleCallback);
+app.post("/api/google/native", googleNativeAuthHandler);
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
