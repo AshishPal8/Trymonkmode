@@ -48,7 +48,8 @@ export function AuthModal({
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    window.location.href = "/api/google";
+    const redirect = typeof window !== "undefined" ? window.location.origin : "";
+    window.location.href = `/api/google?redirect=${encodeURIComponent(redirect)}`;
   };
 
   /* 

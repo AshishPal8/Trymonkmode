@@ -97,7 +97,7 @@ export function LandingNavbar({
             <>
               <button
                 onClick={() => handleAuth("login")}
-                className="text-xs font-bold px-4 py-1.5 rounded-full transition-all cursor-pointer bg-[#0052FF] text-white hover:bg-[#0043D6] shadow-[0_4px_12px_rgba(0,82,255,0.28)] active:scale-95 sm:bg-transparent sm:text-slate-600 sm:hover:text-slate-900 sm:shadow-none sm:rounded-xl sm:px-3 sm:py-1.5"
+                className="text-xs font-bold px-3.5 py-1.5 rounded-full transition-all cursor-pointer text-slate-700 hover:text-[#0052FF] hover:bg-blue-50/80 active:scale-95"
               >
                 Log In
               </button>
@@ -105,10 +105,10 @@ export function LandingNavbar({
               <Button
                 size="sm"
                 onClick={() => handleAuth("signup")}
-                className="hidden sm:flex bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-bold px-4 py-2 rounded-full shadow-[0_4px_14px_rgba(0,82,255,0.35)] transition-all cursor-pointer items-center gap-1.5 hover:scale-105"
+                className="bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-bold px-4 py-2 rounded-full shadow-[0_4px_14px_rgba(0,82,255,0.35)] transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
               >
                 <span>Get Started Free</span>
-                <ArrowRight className="w-3 h-3" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </>
           )}

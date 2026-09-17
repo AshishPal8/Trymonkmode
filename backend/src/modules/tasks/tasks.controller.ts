@@ -41,7 +41,7 @@ export async function createTaskHandler(
   next: NextFunction,
 ) {
   try {
-    const clientTz = req.headers['x-timezone'] as string | undefined;
+    const clientTz = req.headers["x-timezone"] as string | undefined;
     const task = await createTaskService(req.user!.userId, req.body, clientTz);
     return sendResponse({
       res,
@@ -61,8 +61,13 @@ export async function updateTaskHandler(
 ) {
   try {
     const id = parseInt(req.params.id as string, 10);
-    const clientTz = req.headers['x-timezone'] as string | undefined;
-    const task = await updateTaskService(req.user!.userId, id, req.body, clientTz);
+    const clientTz = req.headers["x-timezone"] as string | undefined;
+    const task = await updateTaskService(
+      req.user!.userId,
+      id,
+      req.body,
+      clientTz,
+    );
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,

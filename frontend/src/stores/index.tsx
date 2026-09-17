@@ -55,10 +55,7 @@ export function useApp() {
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const balance = totalIncome - totalExpense;
-  const todayFocusMinutes = focusStore.focusSessions.reduce(
-    (acc, s) => acc + s.durationMinutes,
-    0,
-  );
+  const todayFocusMinutes = focusStore.getTodayFocusMinutes();
 
   const quests: DailyQuest[] = [
     {
@@ -125,9 +122,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         localStorage.setItem("trymonk_access_token", token);
         localStorage.setItem("trymonk_token", token);
-      }
-      if (refresh) {
-        localStorage.setItem("trymonk_refresh_token", refresh);
+
+        // If from mobile app, bounce to custom scheme to close browser and login into app
+        const isMobileRedirect =
+          urlParams.get("platform") === "mobile" ||
+          urlParams.get("redirect")?.startsWith("mobile://") ||
+          (typeof navigator !== "undefined" &&
+            /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+
+        if (isMobileRedirect) {
+          try {
+            window.location.href = `mobile://auth-callback?token=${encodeURIComponent(
+              token,
+            )}&refresh=${encodeURIComponent(refresh || "")}`;
+          } catch {}
+        }
       }
 
       if (googleAuth === "success" || token) {
@@ -166,6 +175,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         uiStore.loadModuleData(useUIStore.getState().activeModule);
       }
     });
+  }, []);
+
+  // Global persistent background timer engine (immune to tab switching / route navigation)
+  useEffect(() => {
+    const DEFAULT_TITLE = 'TryMonkMode | The Operating System for Deep Work & Daily Habits';
+
+    const interval = setInterval(() => {
+      const focusState = useFocusStore.getState();
+
+      if (focusState.isRunning && focusState.targetEndTime) {
+        const now = Date.now();
+        const diff = Math.max(0, Math.ceil((focusState.targetEndTime - now) / 1000));
+
+        const mins = Math.floor(diff / 60);
+        const secs = diff % 60;
+        const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        const emoji = focusState.mode === 'pomodoro' ? '🎯' : focusState.mode === 'shortBreak' ? '☕' : '🌴';
+        const label = focusState.mode === 'pomodoro' ? 'Focus' : focusState.mode === 'shortBreak' ? 'Short Break' : 'Long Break';
+
+        if (typeof document !== 'undefined') {
+          document.title = `(${timeStr}) ${emoji} ${label} • TryMonkMode`;
+        }
+
+        if (diff <= 0) {
+          focusState.completeTimerSession();
+        }
+      } else if (focusState.isStopwatchRunning && focusState.stopwatchStartTime) {
+        const elapsed = Date.now() - focusState.stopwatchStartTime;
+        const totalSecs = Math.floor(elapsed / 1000);
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        if (typeof document !== 'undefined') {
+          document.title = `(${timeStr}) ⏱️ Stopwatch • TryMonkMode`;
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (

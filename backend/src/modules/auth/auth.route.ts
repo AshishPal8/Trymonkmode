@@ -7,6 +7,7 @@ import {
   logoutHandler,
   googleLogin,
   googleCallback,
+  googleNativeAuthHandler,
 } from "./auth.controller.js";
 import { validate } from "../../middlewares/validate.js";
 import {
@@ -20,6 +21,7 @@ const router = Router();
 
 router.get("/google", googleLogin);
 router.get("/google/callback", googleCallback);
+router.post("/google/native", googleNativeAuthHandler);
 
 router.post("/send-otp", validate({ body: sendOtpSchema }), sendOtpHandler);
 router.post(

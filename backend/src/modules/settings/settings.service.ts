@@ -1,32 +1,39 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../../config/db.js';
-import { systemSettings } from '../../db/schema.js';
-import type { CreateSystemFlagInput, UpdateSystemFlagInput } from './settings.schema.js';
+import { eq } from "drizzle-orm";
+import { db } from "../../config/db.js";
+import { systemSettings } from "../../db/schema.js";
+import type {
+  SetSystemFlagInput,
+  UpdateSystemFlagInput,
+} from "./settings.schema.js";
 
 const DEFAULT_FLAGS = [
   {
-    key: 'reminders_cron',
-    value: '1',
-    description: 'Hourly lookahead batching & in-memory precision reminders for tasks, calendar events, and habits.',
-    category: 'cron',
+    key: "reminders_cron",
+    value: "1",
+    description:
+      "Hourly lookahead batching & in-memory precision reminders for tasks, calendar events, and habits.",
+    category: "cron",
   },
   {
-    key: 'cleanup_cron',
-    value: '1',
-    description: 'Daily midnight database cleanup for expired OTPs, revoked tokens, and audit logs.',
-    category: 'cron',
+    key: "cleanup_cron",
+    value: "1",
+    description:
+      "Daily midnight database cleanup for expired OTPs, revoked tokens, and audit logs.",
+    category: "cron",
   },
   {
-    key: 'maintenance_mode',
-    value: '0',
-    description: 'Master maintenance switch for scheduled server/database maintenance.',
-    category: 'system',
+    key: "maintenance_mode",
+    value: "0",
+    description:
+      "Master maintenance switch for scheduled server/database maintenance.",
+    category: "system",
   },
   {
-    key: 'email_service',
-    value: '1',
-    description: 'Master switch for global email dispatches and weekly digest reports.',
-    category: 'system',
+    key: "email_service",
+    value: "1",
+    description:
+      "Master switch for global email dispatches and weekly digest reports.",
+    category: "system",
   },
 ];
 
@@ -47,7 +54,7 @@ export async function seedDefaultSystemFlags() {
       }
     }
   } catch (err) {
-    console.warn('⚠️ [SystemSettings] Seeding check note:', err);
+    console.warn("⚠️ [SystemSettings] Seeding check note:", err);
   }
 }
 
@@ -79,7 +86,10 @@ export async function getSystemFlagService(key: string) {
  * Fast direct boolean check for any flag in the database.
  * Supports '1' / '0', 'true' / 'false', 'on' / 'off', 'yes' / 'no'.
  */
-export async function isFlagEnabled(key: string, defaultValue = true): Promise<boolean> {
+export async function isFlagEnabled(
+  key: string,
+  defaultValue = true,
+): Promise<boolean> {
   try {
     const [row] = await db
       .select({ value: systemSettings.value })
@@ -92,7 +102,7 @@ export async function isFlagEnabled(key: string, defaultValue = true): Promise<b
     }
 
     const val = String(row.value).trim().toLowerCase();
-    return val === '1' || val === 'true' || val === 'yes' || val === 'on';
+    return val === "1" || val === "true" || val === "yes" || val === "on";
   } catch {
     return defaultValue;
   }
@@ -101,7 +111,10 @@ export async function isFlagEnabled(key: string, defaultValue = true): Promise<b
 /**
  * Updates an existing flag or creates it if it doesn't exist.
  */
-export async function updateSystemFlagService(key: string, input: UpdateSystemFlagInput) {
+export async function updateSystemFlagService(
+  key: string,
+  input: UpdateSystemFlagInput,
+) {
   const existing = await getSystemFlagService(key);
 
   if (existing) {
@@ -109,7 +122,8 @@ export async function updateSystemFlagService(key: string, input: UpdateSystemFl
       value: input.value,
       updatedAt: new Date(),
     };
-    if (input.description !== undefined) updates.description = input.description;
+    if (input.description !== undefined)
+      updates.description = input.description;
     if (input.category !== undefined) updates.category = input.category;
 
     const [updated] = await db
@@ -119,16 +133,22 @@ export async function updateSystemFlagService(key: string, input: UpdateSystemFl
       .returning();
 
     // Trigger cron lifecycle if this was a cron flag
-    if (key === 'reminders_cron') {
-      const isEnabled = input.value === '1' || input.value === 'true';
-      const { loadUpcomingRemindersBatch, stopReminderCron, startReminderCron } = await import(
-        '../cron/reminders.cron.js'
-      );
+    if (key === "reminders_cron") {
+      const isEnabled = input.value === "1" || input.value === "true";
+      const {
+        loadUpcomingRemindersBatch,
+        stopReminderCron,
+        startReminderCron,
+      } = await import("../cron/reminders.cron.js");
       if (!isEnabled) {
-        console.log('🛑 [SystemSettings] reminders_cron disabled. Purging in-memory timers.');
+        console.log(
+          "🛑 [SystemSettings] reminders_cron disabled. Purging in-memory timers.",
+        );
         stopReminderCron();
       } else {
-        console.log('⚡ [SystemSettings] reminders_cron enabled. Re-scheduling lookahead batch.');
+        console.log(
+          "⚡ [SystemSettings] reminders_cron enabled. Re-scheduling lookahead batch.",
+        );
         startReminderCron();
         loadUpcomingRemindersBatch().catch(() => {});
       }
@@ -143,8 +163,8 @@ export async function updateSystemFlagService(key: string, input: UpdateSystemFl
     .values({
       key,
       value: input.value,
-      description: input.description || '',
-      category: input.category || 'general',
+      description: input.description || "",
+      category: input.category || "general",
     })
     .returning();
 
@@ -154,14 +174,14 @@ export async function updateSystemFlagService(key: string, input: UpdateSystemFl
 /**
  * Creates a new flag.
  */
-export async function createSystemFlagService(input: CreateSystemFlagInput) {
+export async function createSystemFlagService(input: SetSystemFlagInput) {
   const [created] = await db
     .insert(systemSettings)
     .values({
       key: input.key.trim(),
       value: input.value.trim(),
-      description: input.description || '',
-      category: input.category || 'general',
+      description: input.description || "",
+      category: input.category || "general",
     })
     .returning();
 

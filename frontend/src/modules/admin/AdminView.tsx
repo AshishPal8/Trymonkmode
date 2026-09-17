@@ -6,14 +6,8 @@ import { toast } from "@/components/ui/toast";
 import { ModuleContainer } from "@/components/layout/ModuleContainer";
 import { Button } from "@/components/ui/button";
 import { AdminMetricCard } from "./components/AdminMetricCard";
-import {
-  AdminUsersTab,
-  AdminUserRecord,
-} from "./components/AdminUsersTab";
-import {
-  AdminPagesTab,
-  AdminPageRecord,
-} from "./components/AdminPagesTab";
+import { AdminUsersTab, AdminUserRecord } from "./components/AdminUsersTab";
+import { AdminPagesTab, AdminPageRecord } from "./components/AdminPagesTab";
 import { AdminBlogsTab } from "./components/AdminBlogsTab";
 import { AdminSystemSettingsTab } from "./components/AdminSystemSettingsTab";
 import {
@@ -28,7 +22,9 @@ import {
 } from "lucide-react";
 
 export function AdminView() {
-  const [activeTab, setActiveTab] = useState<"users" | "pages" | "blogs" | "system">("users");
+  const [activeTab, setActiveTab] = useState<
+    "users" | "pages" | "blogs" | "system"
+  >("users");
 
   // Users State
   const [usersList, setUsersList] = useState<AdminUserRecord[]>([]);
@@ -101,7 +97,9 @@ export function AdminView() {
   // Toggle Page Visibility
   const handleTogglePage = async (pageId: number) => {
     setPagesList((prev) =>
-      prev.map((p) => (p.id === pageId ? { ...p, isEnabled: !p.isEnabled } : p)),
+      prev.map((p) =>
+        p.id === pageId ? { ...p, isEnabled: !p.isEnabled } : p,
+      ),
     );
 
     try {
@@ -113,7 +111,9 @@ export function AdminView() {
     }
   };
 
-  const superadminCount = usersList.filter((u) => u.role === "superadmin").length;
+  const superadminCount = usersList.filter(
+    (u) => u.role === "superadmin",
+  ).length;
   const proCount = usersList.filter(
     (u) => u.planTier === "lifetime" || u.planTier === "pro",
   ).length;
@@ -128,7 +128,8 @@ export function AdminView() {
             Admin & System Ops
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage registered users, dynamic navigation modules, and SEO blog articles.
+            Manage registered users, dynamic navigation modules, and SEO blog
+            articles.
           </p>
         </div>
 
