@@ -84,6 +84,15 @@ const OS_INSTRUCTIONS = [
   },
 ];
 
+const REMINDER_LEAD_OPTIONS = [
+  { value: 0, label: "At the time" },
+  { value: 5, label: "5 min before" },
+  { value: 10, label: "10 min before" },
+  { value: 15, label: "15 min before" },
+  { value: 30, label: "30 min before" },
+  { value: 60, label: "1 hour before" },
+];
+
 export function UserProfileModal() {
   const {
     pages,
@@ -111,6 +120,9 @@ export function UserProfileModal() {
     user.emailNotifications ?? true,
   );
   const [soundEffects, setSoundEffects] = useState(user.soundEffects ?? true);
+  const [reminderLead, setReminderLead] = useState(
+    user.reminderLeadMinutes ?? 10,
+  );
   const [selectedFavorites, setSelectedFavorites] = useState<ActiveModuleId[]>(
     user.favorites || [],
   );
@@ -152,6 +164,19 @@ export function UserProfileModal() {
     updateUserProfile({ emailNotifications: enabled });
   };
 
+  type ReminderTypeKey =
+    | "notifyTaskReminders"
+    | "notifyEventReminders"
+    | "notifyHabitReminders";
+  const handleToggleReminderType = (key: ReminderTypeKey, enabled: boolean) => {
+    updateUserProfile({ [key]: enabled });
+  };
+
+  const handleChangeReminderLead = (minutes: number) => {
+    setReminderLead(minutes);
+    updateUserProfile({ reminderLeadMinutes: minutes });
+  };
+
   const handleToggleSound = (enabled: boolean) => {
     setSoundEffects(enabled);
     updateUserProfile({ soundEffects: enabled });
@@ -166,6 +191,7 @@ export function UserProfileModal() {
     setNotificationsEnabled(user.notificationsEnabled ?? true);
     setEmailNotifications(user.emailNotifications ?? true);
     setSoundEffects(user.soundEffects ?? true);
+    setReminderLead(user.reminderLeadMinutes ?? 10);
     setSelectedFavorites(user.favorites || []);
   }, [user]);
 
@@ -432,6 +458,60 @@ export function UserProfileModal() {
                     }
                     className="w-4 h-4 accent-[#0052FF] cursor-pointer"
                   />
+                </div>
+
+                {/* Reminder lead time */}
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">
+                      Remind me before
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      For tasks with a due time and calendar events
+                    </p>
+                  </div>
+                  <select
+                    value={reminderLead}
+                    onChange={(e) =>
+                      handleChangeReminderLead(Number(e.target.value))
+                    }
+                    className="text-xs font-semibold rounded-lg border border-border bg-background px-2 py-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {REMINDER_LEAD_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Which reminders to get */}
+                <div className="pt-3 border-t border-border/60 space-y-2">
+                  <h4 className="text-xs font-bold text-foreground">
+                    Remind me about
+                  </h4>
+                  {(
+                    [
+                      { key: "notifyTaskReminders", label: "Tasks with a due time" },
+                      { key: "notifyEventReminders", label: "Calendar events" },
+                      { key: "notifyHabitReminders", label: "Habits" },
+                    ] as const
+                  ).map((opt) => (
+                    <label
+                      key={opt.key}
+                      className="flex items-center justify-between text-[11px] text-muted-foreground cursor-pointer"
+                    >
+                      <span>{opt.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={user[opt.key] ?? true}
+                        onChange={(e) =>
+                          handleToggleReminderType(opt.key, e.target.checked)
+                        }
+                        className="w-4 h-4 accent-[#0052FF] cursor-pointer disabled:opacity-50"
+                      />
+                    </label>
+                  ))}
                 </div>
 
                 {/* OS Device Notification Guide */}

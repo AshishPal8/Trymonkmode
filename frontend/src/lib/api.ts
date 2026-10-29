@@ -293,7 +293,40 @@ export const notificationsApi = {
   getDeviceTokens: () => api.get("/notifications/device-tokens"),
   sendTestNotification: (title?: string, body?: string) =>
     api.post("/notifications/test", { title, body }),
+
+  // In-app inbox
+  getInbox: (params?: { limit?: number; before?: number }) =>
+    api.get("/notifications/inbox", { params }),
+  markRead: (ids?: number[]) => api.post("/notifications/inbox/read", { ids }),
+
+  // Snooze / Done buttons on a notification
+  action: (input: {
+    action: "snooze" | "done";
+    kind: "task" | "habit";
+    refId: number;
+    minutes?: number;
+  }) => api.post("/notifications/action", input),
+
+  // Admin
+  getAdminStats: (days = 7) =>
+    api.get("/notifications/admin/stats", { params: { days } }),
+  broadcast: (input: {
+    title: string;
+    body: string;
+    audience: "all" | "free" | "paid";
+    moduleId?: string;
+  }) => api.post("/notifications/admin/broadcast", input),
 };
+
+export interface InboxItem {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  data: Record<string, string>;
+  readAt: string | null;
+  createdAt: string;
+}
 
 export interface SystemFlag {
   id: number;

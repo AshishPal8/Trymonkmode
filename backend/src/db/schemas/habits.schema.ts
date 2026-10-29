@@ -8,6 +8,7 @@ import {
   jsonb,
   index
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema.js';
 
 export const habits = pgTable('habits', {
@@ -30,5 +31,8 @@ export const habits = pgTable('habits', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (table) => [
-  index('habits_user_id_idx').on(table.userId)
+  index('habits_user_id_idx').on(table.userId),
+  index('habits_reminder_idx')
+    .on(table.userId)
+    .where(sql`${table.reminderEnabled} = true`)
 ]);

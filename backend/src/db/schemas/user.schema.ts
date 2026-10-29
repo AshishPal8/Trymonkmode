@@ -35,6 +35,12 @@ export const userSettings = pgTable('user_settings', {
   notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
   emailNotifications: boolean('email_notifications').notNull().default(true),
   soundEffects: boolean('sound_effects').notNull().default(true),
+  // Minutes before a task/event to send its reminder (0 = at the exact time)
+  reminderLeadMinutes: integer('reminder_lead_minutes').notNull().default(10),
+  // Per-type reminder switches (on top of notificationsEnabled)
+  notifyTaskReminders: boolean('notify_task_reminders').notNull().default(true),
+  notifyEventReminders: boolean('notify_event_reminders').notNull().default(true),
+  notifyHabitReminders: boolean('notify_habit_reminders').notNull().default(true),
   focusDuration: integer('focus_duration').notNull().default(25),
   shortBreakDuration: integer('short_break_duration').notNull().default(5),
   longBreakDuration: integer('long_break_duration').notNull().default(15),

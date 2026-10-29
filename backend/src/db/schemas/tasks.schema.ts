@@ -10,6 +10,7 @@ import {
   date,
   index
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema.js';
 
 export const tasks = pgTable('tasks', {
@@ -30,5 +31,9 @@ export const tasks = pgTable('tasks', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (table) => [
   index('tasks_user_id_idx').on(table.userId),
-  index('tasks_due_date_idx').on(table.dueDate)
+  index('tasks_due_date_idx').on(table.dueDate),
+  // Open tasks with a due time (used to rebuild the reminder queue)
+  index('tasks_pending_reminder_idx')
+    .on(table.dueDate)
+    .where(sql`${table.completed} = false AND ${table.dueTime} IS NOT NULL`)
 ]);

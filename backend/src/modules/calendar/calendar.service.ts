@@ -1,45 +1,15 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { calendarEvents, userSettings } from "../../db/schema.js";
+import { calendarEvents } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import type {
   CreateCalendarEventInput,
   UpdateCalendarEventInput,
 } from "./calendar.schema.js";
 import {
-  scheduleEventReminderInMemory,
+  scheduleEventReminder,
   cancelEventReminder,
 } from "../cron/reminders.cron.js";
-
-async function getUserTimezone(
-  userId: number,
-  requestTz?: string,
-): Promise<string> {
-  const validReqTz =
-    requestTz && requestTz.trim() && requestTz !== "UTC"
-      ? requestTz.trim()
-      : null;
-  const [settings] = await db
-    .select({ timezone: userSettings.timezone })
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
-
-  const dbTz =
-    settings?.timezone && settings.timezone !== "UTC"
-      ? settings.timezone
-      : null;
-  const resolvedTz = validReqTz || dbTz || "Asia/Kolkata";
-
-  if (validReqTz && (!settings?.timezone || settings.timezone === "UTC")) {
-    db.update(userSettings)
-      .set({ timezone: validReqTz, updatedAt: new Date() })
-      .where(eq(userSettings.userId, userId))
-      .catch(() => {});
-  }
-
-  return resolvedTz;
-}
 
 export async function getEventsService(userId: number, dateStr?: string) {
   const conditions = [eq(calendarEvents.userId, userId)];
@@ -71,9 +41,7 @@ export async function createEventService(
     })
     .returning();
 
-  getUserTimezone(userId, clientTz).then((tz) => {
-    scheduleEventReminderInMemory(created, tz);
-  });
+  scheduleEventReminder(created, clientTz).catch(() => {});
 
   return created;
 }
@@ -105,9 +73,7 @@ export async function updateEventService(
     throw new NotFoundError("Calendar event not found.");
   }
 
-  getUserTimezone(userId, clientTz).then((tz) => {
-    scheduleEventReminderInMemory(updated, tz);
-  });
+  scheduleEventReminder(updated, clientTz).catch(() => {});
 
   return updated;
 }

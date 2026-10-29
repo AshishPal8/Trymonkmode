@@ -39,6 +39,11 @@ export interface UserProfile {
   notificationsEnabled?: boolean;
   emailNotifications?: boolean;
   soundEffects?: boolean;
+  /** Minutes before a task/event to send its reminder (0 = at the time). */
+  reminderLeadMinutes?: number;
+  notifyTaskReminders?: boolean;
+  notifyEventReminders?: boolean;
+  notifyHabitReminders?: boolean;
   role?: 'superadmin' | 'admin' | 'user';
   planTier?: 'free' | 'pro' | 'ai_ultra' | 'lifetime';
   level: number;

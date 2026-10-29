@@ -24,16 +24,44 @@ import { FinanceView } from "@/modules/finance/FinanceView";
 import { AnalyticsView } from "@/modules/analytics/AnalyticsView";
 import { AdminView } from "@/modules/admin/AdminView";
 
-import {
-  setupForegroundNotificationListener,
-  requestAndRegisterFCMToken,
-} from "@/lib/firebase";
+import { requestAndRegisterFCMToken } from "@/lib/firebase";
+import { notificationsApi } from "@/lib/api";
+import { INBOX_REFRESH_EVENT } from "@/components/navigation/NotificationBell";
+import type { ActiveModuleId } from "@/lib/types";
 import { soundFX } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { Bell, X as CloseIcon } from "lucide-react";
 
+const NOTIFICATION_MODULES = new Set<string>(["tasks", "calendar", "habits"]);
+
 function MainAppShell() {
-  const { isAuthenticated, isCheckingAuth, activeModule, user } = useApp();
+  const {
+    isAuthenticated,
+    isCheckingAuth,
+    activeModule,
+    setActiveModule,
+    loadModuleData,
+    user,
+  } = useApp();
+
+  // Done / Snooze tapped on a notification.
+  const runNotificationAction = React.useCallback(
+    async (action: string, kind: string, refId: number) => {
+      if ((action !== "done" && action !== "snooze") || (kind !== "task" && kind !== "habit") || !refId) {
+        return;
+      }
+      try {
+        const res = await notificationsApi.action({ action, kind, refId });
+        toast.success(res?.data?.message || "Done.");
+        if (action === "done") {
+          loadModuleData(kind === "task" ? "tasks" : "habits", true);
+        }
+      } catch {
+        toast.error("Couldn't update that. Please try again in the app.");
+      }
+    },
+    [loadModuleData],
+  );
   const [showNotificationBanner, setShowNotificationBanner] =
     React.useState(false);
 
@@ -63,60 +91,57 @@ function MainAppShell() {
     }
   };
 
+  // Open the module from a notification link (/?module=tasks), then clean the URL.
   React.useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const moduleId = params.get("module");
+    const notifAction = params.get("notifAction");
+    if (!moduleId && !notifAction) return;
 
-    const unsubscribe = setupForegroundNotificationListener((payload) => {
-      if (user.notificationsEnabled === false) return;
+    if (moduleId && NOTIFICATION_MODULES.has(moduleId)) {
+      setActiveModule(moduleId as ActiveModuleId);
+    }
+    if (notifAction) {
+      runNotificationAction(notifAction, params.get("kind") || "", Number(params.get("refId")));
+    }
+    for (const key of ["module", "notifAction", "kind", "refId"]) params.delete(key);
+    const query = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (query ? `?${query}` : ""));
+  }, [isAuthenticated, setActiveModule, runNotificationAction]);
 
-      const title =
-        payload.notification?.title ||
-        payload.data?.title ||
-        "⚡ Try Monk Mode";
-      const body =
-        payload.notification?.body ||
-        payload.data?.body ||
-        "New notification alert";
+  // Messages from the service worker: a push that arrived while the app was
+  // on screen (show a toast, no OS notification) or a notification click.
+  React.useEffect(() => {
+    if (!isAuthenticated || typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
 
-      if (user.soundEffects !== false) {
-        soundFX.playCheckSound();
+    const onMessage = (event: MessageEvent) => {
+      const msg = event.data;
+      if (!msg || typeof msg !== "object") return;
+
+      if (msg.type === "monk-open-module" && NOTIFICATION_MODULES.has(msg.moduleId)) {
+        setActiveModule(msg.moduleId as ActiveModuleId);
+        return;
       }
-      toast.info(`${title} — ${body}`);
 
-      if (
-        typeof window !== "undefined" &&
-        "Notification" in window &&
-        Notification.permission === "granted"
-      ) {
-        if ("serviceWorker" in navigator) {
-          navigator.serviceWorker.ready
-            .then((reg) => {
-              reg.showNotification(title, {
-                body,
-                icon: "/icon.png",
-                badge: "/icon.png",
-                data: payload.data,
-                tag: "trymonkmode-" + Date.now(),
-                requireInteraction: true,
-              });
-            })
-            .catch(() => {
-              try {
-                new Notification(title, { body, icon: "/icon.png" });
-              } catch {}
-            });
-        } else {
-          try {
-            new Notification(title, { body, icon: "/icon.png" });
-          } catch {}
-        }
+      if (msg.type === "monk-action") {
+        runNotificationAction(msg.action, msg.kind, Number(msg.refId));
+        return;
       }
-    });
 
-    return () => {
-      if (typeof unsubscribe === "function") unsubscribe();
+      if (msg.type === "monk-push") {
+        window.dispatchEvent(new Event(INBOX_REFRESH_EVENT));
+        if (user.notificationsEnabled === false) return;
+        if (user.soundEffects !== false) soundFX.playCheckSound();
+        toast.info(`${msg.title} — ${msg.body}`);
+      }
     };
-  }, [isAuthenticated, user.notificationsEnabled, user.soundEffects]);
+
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [isAuthenticated, user.notificationsEnabled, user.soundEffects, setActiveModule, runNotificationAction]);
 
   if (isCheckingAuth) {
     return (
