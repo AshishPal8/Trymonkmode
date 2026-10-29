@@ -122,6 +122,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         localStorage.setItem("trymonk_access_token", token);
         localStorage.setItem("trymonk_token", token);
+        // The refresh token must be kept too. The Google callback runs on the
+        // backend's own domain, so its cookies never reach trymonkmode.in;
+        // without this the session died when the 1-hour access token expired.
+        if (refresh && refresh !== "undefined" && refresh.length > 20) {
+          localStorage.setItem("trymonk_refresh_token", refresh);
+        }
 
         // If from mobile app, bounce to custom scheme to close browser and login into app
         const isMobileRedirect =

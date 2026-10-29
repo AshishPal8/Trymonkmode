@@ -20,7 +20,7 @@ api.interceptors.request.use(
       const token =
         localStorage.getItem("trymonk_access_token") ||
         localStorage.getItem("aura_access_token");
-      if (token && config.headers && !config.headers.Authorization) {
+      if (token && token !== "undefined" && config.headers && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       try {
@@ -76,6 +76,7 @@ api.interceptors.response.use(
             if (token && originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
+            originalRequest._retry = true;
             return api(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -107,6 +108,11 @@ api.interceptors.response.use(
         }
 
         processQueue(null, newAccessToken);
+        // The original request still carries the expired Bearer header (the
+        // request interceptor won't overwrite an existing one), so swap it in.
+        if (newAccessToken && originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        }
         return api(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr as AxiosError, null);

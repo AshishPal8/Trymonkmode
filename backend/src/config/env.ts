@@ -50,3 +50,13 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
+
+if (
+  env.NODE_ENV === "production" &&
+  (env.JWT_SECRET === "trymonk_jwt_secret_dev_key" ||
+    env.JWT_REFRESH_SECRET === "trymonk_refresh_jwt_secret_dev_key")
+) {
+  console.error(
+    "🚨 [Security] JWT_SECRET / JWT_REFRESH_SECRET are the built-in dev defaults. Set strong random values in the Cloud Run environment.",
+  );
+}

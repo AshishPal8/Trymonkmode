@@ -493,11 +493,6 @@ export async function rotateRefreshTokenService(
     throw new UnauthorizedError("Refresh token has been revoked or expired.");
   }
 
-  await db
-    .update(refreshTokens)
-    .set({ isRevoked: true })
-    .where(eq(refreshTokens.id, tokenRecord.id));
-
   const [user] = await db
     .select()
     .from(users)
@@ -509,20 +504,19 @@ export async function rotateRefreshTokenService(
 
   const fullProfile = await getFullUserProfile(user.id);
 
-  const newRefreshTokenHash = crypto.randomBytes(32).toString("hex");
+  // Keep the same session row and push its expiry forward (sliding 30 days).
+  // Before, every refresh revoked the row and made a new one, so two tabs (or
+  // two requests) refreshing at the same moment raced: the loser found its
+  // token revoked and the user got logged out. Logout still revokes the row.
   const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-
-  const [newRecord] = await db
-    .insert(refreshTokens)
-    .values({
-      userId: user.id,
-      tokenHash: newRefreshTokenHash,
-      ipAddress,
-      userAgent,
+  await db
+    .update(refreshTokens)
+    .set({
       expiresAt: newExpiresAt,
-      isRevoked: false,
+      ...(ipAddress ? { ipAddress } : {}),
+      ...(userAgent ? { userAgent } : {}),
     })
-    .returning();
+    .where(eq(refreshTokens.id, tokenRecord.id));
 
   const newAccessToken = generateAccessToken({
     userId: user.id,
@@ -534,7 +528,7 @@ export async function rotateRefreshTokenService(
   const newRefreshToken = generateRefreshToken({
     userId: user.id,
     email: user.email,
-    tokenId: newRecord.id,
+    tokenId: tokenRecord.id,
   });
 
   return {
