@@ -25,22 +25,35 @@ export async function authenticate(
   next: NextFunction,
 ) {
   try {
-    let token: string | undefined = req.cookies?.access_token;
+    const authHeader = req.headers.authorization;
+    const bearer =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : undefined;
+    // Cookie first, then Bearer. If one is stale and the other is fresh
+    // (e.g. only one got updated after a refresh), the fresh one wins.
+    const candidates = [req.cookies?.access_token, bearer].filter(
+      (t, i, arr): t is string =>
+        typeof t === "string" && t.length > 20 && arr.indexOf(t) === i,
+    );
 
-    if (!token) {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        token = authHeader.split(" ")[1];
-      }
-    }
-
-    if (!token) {
+    if (candidates.length === 0) {
       throw new UnauthorizedError(
         "Authentication required. No session cookie or bearer token provided.",
       );
     }
 
-    const decoded = verifyAccessToken(token);
+    let decoded: ReturnType<typeof verifyAccessToken> | null = null;
+    let lastError: unknown;
+    for (const candidate of candidates) {
+      try {
+        decoded = verifyAccessToken(candidate);
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!decoded) throw lastError;
     const [userRecord] = await db
       .select()
       .from(users)

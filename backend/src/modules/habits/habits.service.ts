@@ -3,6 +3,10 @@ import { db } from "../../config/db.js";
 import { habits, users } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import type { CreateHabitInput, UpdateHabitInput } from "./habits.schema.js";
+import {
+  scheduleHabitReminder,
+  cancelHabitReminder,
+} from "../cron/reminders.cron.js";
 
 export async function getHabitsService(userId: number) {
   return db
@@ -36,6 +40,10 @@ export async function createHabitService(
     })
     .returning();
 
+  if (created.reminderEnabled) {
+    scheduleHabitReminder(created).catch(() => {});
+  }
+
   return created;
 }
 
@@ -48,6 +56,8 @@ export async function updateHabitService(
     .update(habits)
     .set({
       ...input,
+      // A new reminder time means today's reminder can go out again.
+      ...(input.reminderTime !== undefined ? { lastReminderDate: null } : {}),
       updatedAt: new Date(),
     })
     .where(and(eq(habits.id, habitId), eq(habits.userId, userId)))
@@ -56,6 +66,8 @@ export async function updateHabitService(
   if (!updated) {
     throw new NotFoundError("Habit not found.");
   }
+
+  scheduleHabitReminder(updated).catch(() => {});
 
   return updated;
 }
@@ -117,6 +129,8 @@ export async function toggleCheckInService(
 }
 
 export async function deleteHabitService(userId: number, habitId: number) {
+  cancelHabitReminder(habitId);
+
   const [deleted] = await db
     .delete(habits)
     .where(and(eq(habits.id, habitId), eq(habits.userId, userId)))

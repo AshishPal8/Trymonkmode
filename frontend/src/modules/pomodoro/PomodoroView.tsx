@@ -1,9 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useFocusStore } from "@/stores/focusStore";
+import { useFocusStore, todayFocusMinutes, focusStreak } from "@/stores/focusStore";
 import { ambientSound, AmbientSoundType } from "@/lib/audio";
 import { FocusAnalyticsCard } from "./components/FocusAnalyticsCard";
+import { FocusTaskPicker } from "./components/FocusTaskPicker";
+import { DistractionNotes } from "./components/DistractionNotes";
+import { FocusFullscreen } from "./components/FocusFullscreen";
+import { FocusHistory } from "./components/FocusHistory";
+import { useApp } from "@/lib/store";
 import {
   Play,
   Pause,
@@ -23,6 +28,7 @@ import {
   Timer,
   BarChart3,
   Zap,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,9 +69,19 @@ export function PomodoroView() {
     setSpotifyUri,
     customSpotifyUrl,
     setCustomSpotifyUrl,
-    getTodayFocusMinutes,
-    getFocusStreak,
+    sessionStartTime,
+    autoStartBreaks,
+    autoStartFocus,
+    setAutoStart,
   } = useFocusStore();
+  const { loadModuleData } = useApp();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // The task picker needs tasks (and goal names).
+  useEffect(() => {
+    loadModuleData("tasks");
+    loadModuleData("goals");
+  }, [loadModuleData]);
 
   // Flip card view: false = Timer, true = 7-Day Stats
   const [isFlipped, setIsFlipped] = useState(false);
@@ -77,8 +93,10 @@ export function PomodoroView() {
   const [currentSeconds, setCurrentSeconds] = useState(getRemainingSeconds());
   const [stopwatchMs, setStopwatchMs] = useState(getStopwatchElapsedMs());
 
-  const todayMinutes = getTodayFocusMinutes();
-  const streak = getFocusStreak();
+  const focusSessions = useFocusStore((s) => s.focusSessions);
+  // From the sessions list, so the numbers update when sessions load.
+  const todayMinutes = todayFocusMinutes(focusSessions);
+  const streak = focusStreak(focusSessions);
 
   // Sync remaining seconds on tick
   useEffect(() => {
@@ -313,6 +331,8 @@ export function PomodoroView() {
                   </div>
                 )}
 
+                {mode === "pomodoro" && <FocusTaskPicker />}
+
                 {/* Circular Ring */}
                 <div className="relative w-56 h-56 sm:w-60 sm:h-60 flex items-center justify-center my-2">
                   <svg
@@ -392,6 +412,38 @@ export function PomodoroView() {
                   >
                     <SkipForward className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => setIsFullscreen(true)}
+                    className="p-3 rounded-full bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer shadow-xs active:scale-95"
+                    title="Full-screen focus mode"
+                    aria-label="Full-screen focus mode"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {mode === "pomodoro" && sessionStartTime && <DistractionNotes />}
+
+                <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-muted-foreground">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoStartBreaks}
+                      onChange={(e) => setAutoStart({ breaks: e.target.checked })}
+                      className="accent-[#0052FF]"
+                    />
+                    Auto-start breaks
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoStartFocus}
+                      onChange={(e) => setAutoStart({ focus: e.target.checked })}
+                      className="accent-[#0052FF]"
+                    />
+                    Auto-start next focus
+                  </label>
+                  <span>Long break after every 4 sessions</span>
                 </div>
               </div>
             )}
@@ -582,6 +634,15 @@ export function PomodoroView() {
             </Button>
           </div>
         </div>
+      )}
+      {activeTab === "pomodoro" && <FocusHistory />}
+
+      {isFullscreen && (
+        <FocusFullscreen
+          seconds={currentSeconds}
+          totalSeconds={totalSeconds}
+          onExit={() => setIsFullscreen(false)}
+        />
       )}
     </ModuleContainer>
   );

@@ -6,7 +6,6 @@ import { useTheme } from "@/hooks/useTheme";
 import {
   Flame,
   Plus,
-  Bell,
   LogOut,
   Search,
   Sun,
@@ -24,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "../ui/UserAvatar";
+import { NotificationBell } from "./NotificationBell";
 
 export function TopHeader() {
   const { user, activeModule, logout, openQuickAdd, openProfileModal } =
@@ -41,7 +41,7 @@ export function TopHeader() {
       case "matrix":
         return "Matrix";
       case "goals":
-        return "Goals & OKRs";
+        return "Goals & Projects";
       case "pomodoro":
       case "stopwatch":
         return "Focus Timer";
@@ -105,40 +105,8 @@ export function TopHeader() {
           <span>Quick Add</span>
         </Button>
 
-        {/* Notifications Dropdown */}
-        <div className="hidden sm:block">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground hover:bg-muted rounded-xl cursor-pointer"
-              >
-                <Bell className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-72 p-3.5 space-y-2 text-xs border border-white/10 shadow-2xl bg-card/95 backdrop-blur-xl"
-            >
-              <div className="font-bold text-foreground mb-1 flex items-center justify-between">
-                <span>Notifications</span>
-                <span className="text-[10px] text-primary font-semibold cursor-pointer">
-                  Mark all
-                </span>
-              </div>
-              <div className="space-y-2">
-                <div className="p-2.5 rounded-xl bg-muted/40 text-foreground">
-                  🔥 <strong>{user.streak}-Day Streak!</strong> You are in peak
-                  flow state.
-                </div>
-                <div className="p-2.5 rounded-xl bg-blue-500/10 text-[#0052FF]">
-                  🌱 <strong>Habits:</strong> Rituals tracking active today.
-                </div>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {/* Notifications inbox */}
+        <NotificationBell />
 
         {/* User Profile Dropdown Menu */}
         <DropdownMenu>

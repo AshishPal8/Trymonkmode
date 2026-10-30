@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
 import {
   Plus,
@@ -30,6 +30,8 @@ interface TaskFormData {
   dueDate: string;
   dueTime: string;
   tags: string;
+  goalId: string; // "" = none
+  milestoneId: string; // "" = none
 }
 
 const INITIAL_TASK_FORM: TaskFormData = {
@@ -39,10 +41,18 @@ const INITIAL_TASK_FORM: TaskFormData = {
   dueDate: getTodayDateString(),
   dueTime: "",
   tags: "#Work",
+  goalId: "",
+  milestoneId: "",
 };
 
 export function TasksView() {
-  const { tasks, addTask, updateTask, toggleTask, deleteTask } = useApp();
+  const { tasks, addTask, updateTask, toggleTask, deleteTask, goals, loadModuleData } = useApp();
+
+  // Goals are needed for the "Goal" picker and the goal chip on each task.
+  useEffect(() => {
+    loadModuleData("goals");
+  }, [loadModuleData]);
+  const goalById = new Map(goals.map((g) => [g.id, g]));
 
   const [activeTab, setActiveTab] = useState<
     "today" | "upcoming" | "inbox" | "completed"
@@ -97,6 +107,8 @@ export function TasksView() {
       dueDate: task.dueDate || getTodayDateString(),
       dueTime: task.dueTime || "",
       tags: task.tags?.join(" ") || "",
+      goalId: task.goalId || "",
+      milestoneId: task.milestoneId || "",
     });
     setIsModalOpen(true);
   };
@@ -122,6 +134,8 @@ export function TasksView() {
           taskForm.priority === "P1"
             ? "urgent-important"
             : "notUrgent-important",
+        goalId: taskForm.goalId || null,
+        milestoneId: taskForm.milestoneId || null,
       });
     } else {
       addTask({
@@ -138,6 +152,8 @@ export function TasksView() {
           taskForm.priority === "P1"
             ? "urgent-important"
             : "notUrgent-important",
+        goalId: taskForm.goalId || null,
+        milestoneId: taskForm.milestoneId || null,
       });
     }
 
@@ -321,6 +337,18 @@ export function TasksView() {
                     >
                       {task.title}
                     </span>
+                    {task.goalId && goalById.get(task.goalId) && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-1 max-w-40 truncate"
+                        style={{
+                          color: goalById.get(task.goalId)!.color,
+                          backgroundColor: `${goalById.get(task.goalId)!.color}1A`,
+                        }}
+                        title="Part of this goal"
+                      >
+                        🎯 {goalById.get(task.goalId)!.title}
+                      </span>
+                    )}
                     {task.dueTime && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-mono flex items-center gap-1">
                         <Clock className="w-2.5 h-2.5" />
@@ -480,6 +508,51 @@ export function TasksView() {
               />
             </div>
           </div>
+
+          {/* Link to a goal / milestone */}
+          {goals.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  Goal (optional)
+                </label>
+                <CustomSelect
+                  value={taskForm.goalId || "none"}
+                  onChange={(val) =>
+                    setTaskForm((prev) => ({
+                      ...prev,
+                      goalId: val === "none" ? "" : val,
+                      milestoneId: "",
+                    }))
+                  }
+                  options={[
+                    { value: "none", label: "No goal" },
+                    ...goals
+                      .filter((g) => g.status !== "done" || g.id === taskForm.goalId)
+                      .map((g) => ({ value: g.id, label: g.title })),
+                  ]}
+                />
+              </div>
+              {(goalById.get(taskForm.goalId)?.milestones.length || 0) > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                    Milestone
+                  </label>
+                  <CustomSelect
+                    value={taskForm.milestoneId || "none"}
+                    onChange={(val) => updateFormField("milestoneId", val === "none" ? "" : val)}
+                    options={[
+                      { value: "none", label: "No milestone" },
+                      ...(goalById.get(taskForm.goalId)?.milestones || []).map((m) => ({
+                        value: m.id,
+                        label: m.title,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border/60">
             <button

@@ -9,7 +9,10 @@ import {
   goalsApi,
   bookmarksApi,
   financeApi,
+  focusApi,
 } from "@/lib/api";
+import { useFocusStore } from "./focusStore";
+import { toLocalIsoString } from "@/lib/utils";
 import { getTodayDateString } from "@/lib/utils";
 import { useTaskStore } from "./taskStore";
 import { useHabitStore } from "./habitStore";
@@ -172,6 +175,26 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
 
     try {
       switch (moduleId) {
+        case "pomodoro":
+        case "stopwatch": {
+          const focusRes = await focusApi.getSessions(90).catch(() => null);
+          if (Array.isArray(focusRes?.data?.data)) {
+            useFocusStore.getState().setFocusSessions(
+              focusRes.data.data.map((f: any) => ({
+                id: String(f.id),
+                durationMinutes: f.durationMinutes,
+                mode: f.mode,
+                tag: f.tag,
+                taskTitle: f.taskTitle || undefined,
+                notes: f.notes || undefined,
+                completed: !!f.completed,
+                timestamp: toLocalIsoString(new Date(f.endedAt)),
+              })),
+            );
+          }
+          break;
+        }
+
         case "analytics": {
           await useAnalyticsStore.getState().fetchAnalytics();
           break;
@@ -189,7 +212,7 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
                 description: t.description || "",
                 priority: t.priority || "P2",
                 dueDate: t.dueDate || getTodayDateString(),
-                dueTime: t.dueTime || "09:00",
+                dueTime: t.dueTime || undefined, // no time = no reminder (it used to default to 09:00)
                 category: "General",
                 tags: t.tags || [],
                 subtasks: t.subtasks || [],
@@ -198,11 +221,19 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
                 createdAt: t.createdAt
                   ? String(t.createdAt).slice(0, 10)
                   : getTodayDateString(),
+                goalId: t.goalId ? String(t.goalId) : null,
+                milestoneId: t.milestoneId ? String(t.milestoneId) : null,
               })),
             );
           }
           if (moduleId === "dashboard") {
-            useAnalyticsStore.getState().fetchAnalytics();
+            // The dashboard shows habits, events and today's focus too.
+            await Promise.all([
+              useAnalyticsStore.getState().fetchAnalytics(),
+              get().loadModuleData("habits"),
+              get().loadModuleData("calendar"),
+              get().loadModuleData("pomodoro"),
+            ]);
           }
           break;
         }
@@ -302,25 +333,11 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
         }
 
         case "goals": {
-          const gRes = await goalsApi.getGoals().catch(() => null);
-          if (gRes?.data?.data) {
-            useGoalsStore.getState().setGoals(
-              gRes.data.data.map((g: any) => ({
-                id: String(g.id),
-                title: g.title,
-                category: (g.category as any) || "Career",
-                timeframe: (g.timeframe as any) || "yearly",
-                deadline: g.targetDate || getTodayDateString(),
-                progress: g.progress || 0,
-                color: "#0052FF",
-                milestones: Array.isArray(g.milestones) ? g.milestones : [],
-                targetMetric: g.description || "",
-                createdAt: g.createdAt
-                  ? String(g.createdAt).slice(0, 10)
-                  : getTodayDateString(),
-              })),
-            );
-          }
+          // Goals show their linked tasks, so make sure tasks are loaded too.
+          await Promise.all([
+            useGoalsStore.getState().fetchGoals(),
+            get().loadModuleData("tasks"),
+          ]);
           break;
         }
 

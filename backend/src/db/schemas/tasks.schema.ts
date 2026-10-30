@@ -10,12 +10,14 @@ import {
   date,
   index
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema.js';
 
 export const tasks = pgTable('tasks', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  goalId: integer('goal_id'),
+  goalId: integer('goal_id'), // linked goal / project (optional)
+  milestoneId: integer('milestone_id'), // linked milestone inside that goal (optional)
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
   priority: varchar('priority', { length: 10 }).notNull().default('P2'), // 'P1' | 'P2' | 'P3' | 'P4'
@@ -30,5 +32,10 @@ export const tasks = pgTable('tasks', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 }, (table) => [
   index('tasks_user_id_idx').on(table.userId),
-  index('tasks_due_date_idx').on(table.dueDate)
+  index('tasks_goal_id_idx').on(table.goalId),
+  index('tasks_due_date_idx').on(table.dueDate),
+  // Open tasks with a due time (used to rebuild the reminder queue)
+  index('tasks_pending_reminder_idx')
+    .on(table.dueDate)
+    .where(sql`${table.completed} = false AND ${table.dueTime} IS NOT NULL`)
 ]);

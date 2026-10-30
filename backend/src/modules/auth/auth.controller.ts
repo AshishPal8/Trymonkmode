@@ -9,6 +9,7 @@ import {
   fetchGoogleProfile,
   findOrCreateGoogleUser,
 } from "./auth.service.js";
+import { UnauthorizedError } from "../../utils/errors.js";
 import { sendResponse } from "../../utils/apiResponse.js";
 import { HttpStatus } from "../../utils/httpStatus.js";
 import { env } from "../../config/env.js";
@@ -255,19 +256,31 @@ export async function refreshTokenHandler(
   next: NextFunction,
 ) {
   try {
-    const rawRefreshToken =
-      req.cookies?.refresh_token || req.body?.refreshToken;
+    // Try the cookie first, then the token sent in the body (used when the
+    // cookie lives on another domain or is blocked). Skip junk like "undefined".
+    const candidates = [req.cookies?.refresh_token, req.body?.refreshToken].filter(
+      (t, i, arr): t is string =>
+        typeof t === "string" && t.length > 20 && arr.indexOf(t) === i,
+    );
     const clientIp =
       (req.headers["x-forwarded-for"] as string) ||
       req.socket.remoteAddress ||
       req.ip;
     const userAgent = req.headers["user-agent"] as string;
 
-    const result = await rotateRefreshTokenService(
-      rawRefreshToken,
-      clientIp,
-      userAgent,
+    let result: Awaited<ReturnType<typeof rotateRefreshTokenService>> | null = null;
+    let lastError: unknown = new UnauthorizedError(
+      "No refresh token provided. Please log in again.",
     );
+    for (const candidate of candidates) {
+      try {
+        result = await rotateRefreshTokenService(candidate, clientIp, userAgent);
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!result) throw lastError;
 
     setAuthCookies(res, result.accessToken, result.refreshToken);
 

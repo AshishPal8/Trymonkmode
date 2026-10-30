@@ -11,6 +11,10 @@ export const updateProfileSchema = z.object({
   notificationsEnabled: z.boolean().optional(),
   emailNotifications: z.boolean().optional(),
   soundEffects: z.boolean().optional(),
+  reminderLeadMinutes: z.number().int().min(0).max(120).optional(),
+  notifyTaskReminders: z.boolean().optional(),
+  notifyEventReminders: z.boolean().optional(),
+  notifyHabitReminders: z.boolean().optional(),
 });
 
 export const updateUserRoleTierSchema = z.object({

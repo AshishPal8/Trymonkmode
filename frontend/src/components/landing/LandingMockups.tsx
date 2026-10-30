@@ -165,7 +165,7 @@ export function PhoneMockupFinance() {
         <div className="flex items-center justify-between pt-1">
           <div>
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Balance</h4>
-            <h3 className="text-xl font-extrabold text-foreground tracking-tight">$14,890.40</h3>
+            <h3 className="text-xl font-extrabold text-foreground tracking-tight">₹1,48,904</h3>
           </div>
           <div className="px-2 py-1 rounded-xl bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
@@ -177,7 +177,7 @@ export function PhoneMockupFinance() {
         <div className="p-3 rounded-2xl bg-gradient-to-b from-[#0052FF]/15 to-transparent border border-[#0052FF]/30 space-y-2">
           <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold">
             <span>Weekly Net Inflow</span>
-            <span className="text-[#0052FF] dark:text-[#60A5FA] font-bold">+$3,240.00</span>
+            <span className="text-[#0052FF] dark:text-[#60A5FA] font-bold">+₹32,400</span>
           </div>
           {/* Wave SVG */}
           <div className="h-16 w-full flex items-end">
@@ -198,10 +198,10 @@ export function PhoneMockupFinance() {
         <div className="space-y-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recent Inflow / Outflow</span>
           {[
-            { title: 'Stripe SaaS Payout', date: 'Today, 2:15 PM', amount: '+$3,400.00', type: 'income', color: '#10B981' },
-            { title: 'AWS Cloud Server Cluster', date: 'Yesterday', amount: '-$149.00', type: 'expense', color: '#F43F5E' },
-            { title: 'Annual Figma Pro License', date: 'Aug 24', amount: '-$144.00', type: 'expense', color: '#F43F5E' },
-            { title: 'Client Consulting Retainer', date: 'Aug 22', amount: '+$1,850.00', type: 'income', color: '#10B981' },
+            { title: 'Freelance Payout', date: 'Today, 2:15 PM', amount: '+₹34,000', type: 'income', color: '#10B981' },
+            { title: 'Cloud Server Bill', date: 'Yesterday', amount: '-₹1,499', type: 'expense', color: '#F43F5E' },
+            { title: 'Annual Figma Pro License', date: 'Aug 24', amount: '-₹1,440', type: 'expense', color: '#F43F5E' },
+            { title: 'Client Consulting Retainer', date: 'Aug 22', amount: '+₹18,500', type: 'income', color: '#10B981' },
           ].map((tx, idx) => (
             <div key={idx} className="p-2 rounded-xl bg-card border border-border flex items-center justify-between">
               <div className="flex items-center gap-2">

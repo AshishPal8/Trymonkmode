@@ -82,30 +82,45 @@ export async function getSystemFlagService(key: string) {
   return row || null;
 }
 
+// Flags are read on almost every task/event write and by every cron run, so
+// keep them in memory for a short while. Any write through this service
+// clears the cache right away, so admin changes still apply instantly.
+const FLAG_CACHE_TTL_MS = 60 * 1000;
+const flagCache = new Map<string, { raw: string | null; expiresAt: number }>();
+
+export function clearFlagCache() {
+  flagCache.clear();
+}
+
 /**
- * Fast direct boolean check for any flag in the database.
- * Supports '1' / '0', 'true' / 'false', 'on' / 'off', 'yes' / 'no'.
+ * Boolean check for a flag. Supports '1' / '0', 'true' / 'false', 'on' / 'off', 'yes' / 'no'.
  */
 export async function isFlagEnabled(
   key: string,
   defaultValue = true,
 ): Promise<boolean> {
-  try {
-    const [row] = await db
-      .select({ value: systemSettings.value })
-      .from(systemSettings)
-      .where(eq(systemSettings.key, key))
-      .limit(1);
+  let raw: string | null;
+  const cached = flagCache.get(key);
 
-    if (!row) {
+  if (cached && cached.expiresAt > Date.now()) {
+    raw = cached.raw;
+  } else {
+    try {
+      const [row] = await db
+        .select({ value: systemSettings.value })
+        .from(systemSettings)
+        .where(eq(systemSettings.key, key))
+        .limit(1);
+      raw = row ? String(row.value) : null;
+      flagCache.set(key, { raw, expiresAt: Date.now() + FLAG_CACHE_TTL_MS });
+    } catch {
       return defaultValue;
     }
-
-    const val = String(row.value).trim().toLowerCase();
-    return val === "1" || val === "true" || val === "yes" || val === "on";
-  } catch {
-    return defaultValue;
   }
+
+  if (raw === null) return defaultValue;
+  const val = raw.trim().toLowerCase();
+  return val === "1" || val === "true" || val === "yes" || val === "on";
 }
 
 /**
@@ -131,28 +146,10 @@ export async function updateSystemFlagService(
       .set(updates)
       .where(eq(systemSettings.key, key))
       .returning();
+    clearFlagCache();
 
-    // Trigger cron lifecycle if this was a cron flag
-    if (key === "reminders_cron") {
-      const isEnabled = input.value === "1" || input.value === "true";
-      const {
-        loadUpcomingRemindersBatch,
-        stopReminderCron,
-        startReminderCron,
-      } = await import("../cron/reminders.cron.js");
-      if (!isEnabled) {
-        console.log(
-          "🛑 [SystemSettings] reminders_cron disabled. Purging in-memory timers.",
-        );
-        stopReminderCron();
-      } else {
-        console.log(
-          "⚡ [SystemSettings] reminders_cron enabled. Re-scheduling lookahead batch.",
-        );
-        startReminderCron();
-        loadUpcomingRemindersBatch().catch(() => {});
-      }
-    }
+    // reminders_cron needs no restart: the reminder worker reads the flag
+    // (from the cache cleared above) on every run.
 
     return updated;
   }
@@ -167,6 +164,7 @@ export async function updateSystemFlagService(
       category: input.category || "general",
     })
     .returning();
+  clearFlagCache();
 
   return created;
 }
@@ -184,6 +182,7 @@ export async function createSystemFlagService(input: SetSystemFlagInput) {
       category: input.category || "general",
     })
     .returning();
+  clearFlagCache();
 
   return created;
 }
@@ -193,5 +192,6 @@ export async function createSystemFlagService(input: SetSystemFlagInput) {
  */
 export async function deleteSystemFlagService(key: string) {
   await db.delete(systemSettings).where(eq(systemSettings.key, key));
+  clearFlagCache();
   return { message: `System flag '${key}' deleted successfully.` };
 }

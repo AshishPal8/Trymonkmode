@@ -23,6 +23,7 @@ export const INITIAL_USER: UserProfile = {
   notificationsEnabled: true,
   emailNotifications: true,
   soundEffects: true,
+  reminderLeadMinutes: 10,
   role: "user",
   planTier: "free",
   level: 1,
@@ -151,6 +152,10 @@ export const useUserStore = create<UserStoreState>()(
             notificationsEnabled: data.notificationsEnabled,
             emailNotifications: data.emailNotifications,
             soundEffects: data.soundEffects,
+            reminderLeadMinutes: data.reminderLeadMinutes,
+            notifyTaskReminders: data.notifyTaskReminders,
+            notifyEventReminders: data.notifyEventReminders,
+            notifyHabitReminders: data.notifyHabitReminders,
           })
           .catch(() => {});
       },
@@ -224,6 +229,10 @@ export const useUserStore = create<UserStoreState>()(
                 notificationsEnabled: u.notificationsEnabled ?? true,
                 emailNotifications: u.emailNotifications ?? true,
                 soundEffects: u.soundEffects ?? true,
+                reminderLeadMinutes: u.reminderLeadMinutes ?? 10,
+                notifyTaskReminders: u.notifyTaskReminders ?? true,
+                notifyEventReminders: u.notifyEventReminders ?? true,
+                notifyHabitReminders: u.notifyHabitReminders ?? true,
                 role: u.role || "user",
                 planTier: u.planTier || "free",
                 level: u.level || 1,
@@ -241,8 +250,14 @@ export const useUserStore = create<UserStoreState>()(
               },
             });
 
-            // Automatically request/sync FCM device token for push notifications
-            if (typeof window !== "undefined" && (u.notificationsEnabled ?? true)) {
+            // Refresh the FCM token silently, only if permission was already
+            // granted. Asking for permission is left to the in-app banner.
+            if (
+              typeof window !== "undefined" &&
+              (u.notificationsEnabled ?? true) &&
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
               requestAndRegisterFCMToken().catch(() => {});
             }
           } else {

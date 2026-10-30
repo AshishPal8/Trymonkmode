@@ -20,7 +20,7 @@ api.interceptors.request.use(
       const token =
         localStorage.getItem("trymonk_access_token") ||
         localStorage.getItem("aura_access_token");
-      if (token && config.headers && !config.headers.Authorization) {
+      if (token && token !== "undefined" && config.headers && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       try {
@@ -76,6 +76,7 @@ api.interceptors.response.use(
             if (token && originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
+            originalRequest._retry = true;
             return api(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -107,6 +108,11 @@ api.interceptors.response.use(
         }
 
         processQueue(null, newAccessToken);
+        // The original request still carries the expired Bearer header (the
+        // request interceptor won't overwrite an existing one), so swap it in.
+        if (newAccessToken && originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        }
         return api(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr as AxiosError, null);
@@ -200,8 +206,16 @@ export const goalsApi = {
   getGoals: (timeframe?: string) =>
     api.get("/goals", { params: { timeframe } }),
   createGoal: (data: any) => api.post("/goals", data),
+  getGoal: (id: number) => api.get(`/goals/${id}`),
   updateGoal: (id: number, data: any) => api.patch(`/goals/${id}`, data),
   deleteGoal: (id: number) => api.delete(`/goals/${id}`),
+  createMilestone: (goalId: number, data: { title: string; dueDate?: string | null }) =>
+    api.post(`/goals/${goalId}/milestones`, data),
+  updateMilestone: (
+    milestoneId: number,
+    data: { title?: string; dueDate?: string | null; completed?: boolean; orderIndex?: number },
+  ) => api.patch(`/goals/milestones/${milestoneId}`, data),
+  deleteMilestone: (milestoneId: number) => api.delete(`/goals/milestones/${milestoneId}`),
 };
 
 export const notesApi = {
@@ -277,6 +291,21 @@ export const uploadApi = {
   },
 };
 
+export const focusApi = {
+  getSessions: (days = 90) => api.get("/focus/sessions", { params: { days } }),
+  createSession: (input: {
+    durationMinutes: number;
+    plannedMinutes: number;
+    completed: boolean;
+    mode: "pomodoro" | "stopwatch";
+    tag: string;
+    taskId?: number;
+    notes?: string;
+    startedAt: string;
+    endedAt: string;
+  }) => api.post("/focus/sessions", input),
+};
+
 export const notificationsApi = {
   registerDeviceToken: (
     fcmToken: string,
@@ -293,7 +322,40 @@ export const notificationsApi = {
   getDeviceTokens: () => api.get("/notifications/device-tokens"),
   sendTestNotification: (title?: string, body?: string) =>
     api.post("/notifications/test", { title, body }),
+
+  // In-app inbox
+  getInbox: (params?: { limit?: number; before?: number }) =>
+    api.get("/notifications/inbox", { params }),
+  markRead: (ids?: number[]) => api.post("/notifications/inbox/read", { ids }),
+
+  // Snooze / Done buttons on a notification
+  action: (input: {
+    action: "snooze" | "done";
+    kind: "task" | "habit";
+    refId: number;
+    minutes?: number;
+  }) => api.post("/notifications/action", input),
+
+  // Admin
+  getAdminStats: (days = 7) =>
+    api.get("/notifications/admin/stats", { params: { days } }),
+  broadcast: (input: {
+    title: string;
+    body: string;
+    audience: "all" | "free" | "paid";
+    moduleId?: string;
+  }) => api.post("/notifications/admin/broadcast", input),
 };
+
+export interface InboxItem {
+  id: number;
+  title: string;
+  body: string;
+  type: string;
+  data: Record<string, string>;
+  readAt: string | null;
+  createdAt: string;
+}
 
 export interface SystemFlag {
   id: number;

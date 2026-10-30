@@ -50,6 +50,15 @@ export function getTodayDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
+/** "2026-10-29T21:47:05" in the browser's local time (no Z), so
+ *  `startsWith(getTodayDateString())` matches the user's own day. */
+export function toLocalIsoString(date: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(
+    date.getHours(),
+  )}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
+}
+
 export function formatDatePretty(dateString: string): string {
   if (!dateString) return "";
   const [y, m, d] = dateString.split("-").map(Number);
@@ -62,10 +71,14 @@ export function formatDatePretty(dateString: string): string {
   });
 }
 
+/** ₹ with Indian grouping: 150000 -> "₹1,50,000", 30.5 -> "₹30.50". */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
+  const hasPaise = Math.round(amount * 100) % 100 !== 0;
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
+    minimumFractionDigits: hasPaise ? 2 : 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
@@ -173,3 +186,9 @@ class SoundFX {
 }
 
 export const soundFX = new SoundFX();
+
+/** The id the backend gave a newly created item (from `{ data: { id } }`). */
+export function serverIdFrom(res: unknown): string | null {
+  const id = (res as { data?: { data?: { id?: unknown } } })?.data?.data?.id;
+  return id !== undefined && id !== null ? String(id) : null;
+}

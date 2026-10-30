@@ -8,10 +8,7 @@ import {
 } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import { getFullUserProfile } from "../auth/auth.service.js";
-import {
-  cancelAllUserReminders,
-  reloadUserReminders,
-} from "../cron/reminders.cron.js";
+import { rebuildReminders } from "../cron/reminders.cron.js";
 import type {
   UpdateProfileInput,
   UpdateUserRoleTierInput,
@@ -45,16 +42,20 @@ export async function updateProfileService(
   if (input.timezone !== undefined) settingsUpdates.timezone = input.timezone;
   if (input.notificationsEnabled !== undefined) {
     settingsUpdates.notificationsEnabled = input.notificationsEnabled;
-    if (input.notificationsEnabled === false) {
-      cancelAllUserReminders(userId);
-    } else {
-      reloadUserReminders(userId).catch(() => {});
-    }
   }
   if (input.emailNotifications !== undefined)
     settingsUpdates.emailNotifications = input.emailNotifications;
   if (input.soundEffects !== undefined)
     settingsUpdates.soundEffects = input.soundEffects;
+  if (input.reminderLeadMinutes !== undefined)
+    settingsUpdates.reminderLeadMinutes = input.reminderLeadMinutes;
+  for (const key of [
+    "notifyTaskReminders",
+    "notifyEventReminders",
+    "notifyHabitReminders",
+  ] as const) {
+    if (input[key] !== undefined) settingsUpdates[key] = input[key];
+  }
 
   if (Object.keys(settingsUpdates).length > 0) {
     settingsUpdates.updatedAt = new Date();
@@ -62,6 +63,13 @@ export async function updateProfileService(
       .update(userSettings)
       .set(settingsUpdates)
       .where(eq(userSettings.userId, userId));
+
+    // Send times depend on timezone and lead time, so recompute them after
+    // the new values are saved. (Turning notifications off/on needs nothing:
+    // the worker checks the setting when it sends.)
+    if (input.timezone !== undefined || input.reminderLeadMinutes !== undefined) {
+      rebuildReminders(userId).catch(() => {});
+    }
   }
 
   if (input.favorites !== undefined && Array.isArray(input.favorites)) {

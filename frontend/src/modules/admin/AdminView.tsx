@@ -10,6 +10,7 @@ import { AdminUsersTab, AdminUserRecord } from "./components/AdminUsersTab";
 import { AdminPagesTab, AdminPageRecord } from "./components/AdminPagesTab";
 import { AdminBlogsTab } from "./components/AdminBlogsTab";
 import { AdminSystemSettingsTab } from "./components/AdminSystemSettingsTab";
+import { AdminNotificationsTab } from "./components/AdminNotificationsTab";
 import {
   Users,
   Layers,
@@ -19,11 +20,12 @@ import {
   Sparkles,
   BookOpen,
   Cpu,
+  BellRing,
 } from "lucide-react";
 
 export function AdminView() {
   const [activeTab, setActiveTab] = useState<
-    "users" | "pages" | "blogs" | "system"
+    "users" | "pages" | "blogs" | "notifications" | "system"
   >("users");
 
   // Users State
@@ -197,6 +199,12 @@ export function AdminView() {
             icon: BookOpen,
           },
           {
+            id: "notifications",
+            label: "Notifications",
+            count: undefined,
+            icon: BellRing,
+          },
+          {
             id: "system",
             label: "System & Crons",
             count: undefined,
@@ -251,6 +259,8 @@ export function AdminView() {
       )}
 
       {activeTab === "blogs" && <AdminBlogsTab />}
+
+      {activeTab === "notifications" && <AdminNotificationsTab />}
 
       {activeTab === "system" && <AdminSystemSettingsTab />}
     </ModuleContainer>

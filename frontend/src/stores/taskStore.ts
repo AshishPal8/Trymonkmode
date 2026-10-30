@@ -3,10 +3,20 @@ import { persist } from "zustand/middleware";
 import { createEncryptedStorage } from "@/lib/encryptedStorage";
 import { TaskItem } from "@/lib/types";
 import { tasksApi } from "@/lib/api";
-import { getTodayDateString, soundFX } from "@/lib/utils";
+import { getTodayDateString, soundFX, serverIdFrom } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { useUserStore } from "./userStore";
 import { useAnalyticsStore } from "./analyticsStore";
+import { useGoalsStore } from "./goalsStore";
+
+/** Goal progress depends on its tasks, so re-read those goals. */
+function refreshGoals(...goalIds: (string | null | undefined)[]) {
+  for (const id of new Set(goalIds.filter(Boolean) as string[])) {
+    useGoalsStore.getState().refreshGoal(id);
+  }
+}
+
+const toNumOrNull = (v: string | null | undefined) => (v ? Number(v) : null);
 
 export interface TaskStoreState {
   tasks: TaskItem[];
@@ -47,14 +57,29 @@ export const useTaskStore = create<TaskStoreState>()(
             subtasks: task.subtasks,
             completed: task.completed,
             quadrant: task.quadrant,
+            ...(task.goalId ? { goalId: Number(task.goalId) } : {}),
+            ...(task.milestoneId ? { milestoneId: Number(task.milestoneId) } : {}),
+          })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                tasks: state.tasks.map((x) => (x.id === newTask.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
           })
           .then(() => {
             useAnalyticsStore.getState().fetchAnalytics();
+            refreshGoals(task.goalId);
           })
           .catch(() => {});
       },
 
       updateTask: (id, updates) => {
+        const before = get().tasks.find((t) => t.id === id);
         set((state) => ({
           tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
         }));
@@ -73,15 +98,19 @@ export const useTaskStore = create<TaskStoreState>()(
               subtasks: updates.subtasks,
               completed: updates.completed,
               quadrant: updates.quadrant,
+              ...("goalId" in updates ? { goalId: toNumOrNull(updates.goalId) } : {}),
+              ...("milestoneId" in updates ? { milestoneId: toNumOrNull(updates.milestoneId) } : {}),
             })
             .then(() => {
               useAnalyticsStore.getState().fetchAnalytics();
+              refreshGoals(before?.goalId, updates.goalId);
             })
             .catch(() => {});
         }
       },
 
       toggleTask: (id) => {
+        const goalId = get().tasks.find((t) => t.id === id)?.goalId;
         set((state) => ({
           tasks: state.tasks.map((t) => {
             if (t.id === id) {
@@ -107,12 +136,14 @@ export const useTaskStore = create<TaskStoreState>()(
             .toggleTask(numId)
             .then(() => {
               useAnalyticsStore.getState().fetchAnalytics();
+              refreshGoals(goalId);
             })
             .catch(() => {});
         }
       },
 
       deleteTask: (id) => {
+        const goalId = get().tasks.find((t) => t.id === id)?.goalId;
         set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
         toast.info("Task deleted");
         const numId = parseInt(id.replace(/\D/g, ""), 10);
@@ -121,6 +152,7 @@ export const useTaskStore = create<TaskStoreState>()(
             .deleteTask(numId)
             .then(() => {
               useAnalyticsStore.getState().fetchAnalytics();
+              refreshGoals(goalId);
             })
             .catch(() => {});
         }

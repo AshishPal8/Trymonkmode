@@ -3,14 +3,23 @@ import {
   registerDeviceTokenHandler,
   removeDeviceTokenHandler,
   getDeviceTokensHandler,
-  sendTestNotificationHandler
+  sendTestNotificationHandler,
+  getInboxHandler,
+  markReadHandler,
+  notificationActionHandler,
+  broadcastHandler,
+  notificationStatsHandler
 } from './notifications.controller.js';
+import { authorizeRoles } from '../../middlewares/rbac.middleware.js';
 import { authenticate } from '../../middlewares/auth.middleware.js';
 import { validate } from '../../middlewares/validate.js';
 import {
   registerDeviceTokenSchema,
   removeDeviceTokenSchema,
-  sendTestNotificationSchema
+  sendTestNotificationSchema,
+  markReadSchema,
+  notificationActionSchema,
+  broadcastSchema
 } from './notifications.schema.js';
 
 const router = Router();
@@ -35,6 +44,22 @@ router.post(
   '/test',
   validate({ body: sendTestNotificationSchema }),
   sendTestNotificationHandler
+);
+
+// In-app inbox
+router.get('/inbox', getInboxHandler);
+router.post('/inbox/read', validate({ body: markReadSchema }), markReadHandler);
+
+// Buttons on a notification (Snooze / Done)
+router.post('/action', validate({ body: notificationActionSchema }), notificationActionHandler);
+
+// Admin
+router.get('/admin/stats', authorizeRoles('superadmin', 'admin'), notificationStatsHandler);
+router.post(
+  '/admin/broadcast',
+  authorizeRoles('superadmin', 'admin'),
+  validate({ body: broadcastSchema }),
+  broadcastHandler
 );
 
 export const notificationRoutes = router;

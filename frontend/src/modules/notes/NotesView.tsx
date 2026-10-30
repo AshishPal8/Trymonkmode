@@ -1,579 +1,440 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import { Check, FileText, Pin, Plus, Search, Trash2, X } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { NoteItem } from "@/lib/types";
-import { Button } from "@/components/ui/button";
-import {
-  FileText,
-  Plus,
-  Pin,
-  Trash2,
-  Check,
-  Search,
-  MoreVertical,
-  Calendar,
-  X,
-  Edit2,
-} from "lucide-react";
+import type { NoteItem } from "@/lib/types";
 import { soundFX } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { ModuleContainer } from "@/components/layout/ModuleContainer";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 export const NOTE_COLORS = [
-  {
-    name: "Electric Blue",
-    hex: "#0052FF",
-    bgGlass: "rgba(0, 82, 255, 0.10)",
-    border: "rgba(0, 82, 255, 0.28)",
-    glow: "rgba(0, 82, 255, 0.25)",
-  },
-  {
-    name: "Emerald Green",
-    hex: "#10B981",
-    bgGlass: "rgba(16, 185, 129, 0.10)",
-    border: "rgba(16, 185, 129, 0.28)",
-    glow: "rgba(16, 185, 129, 0.25)",
-  },
-  {
-    name: "Amber Gold",
-    hex: "#F59E0B",
-    bgGlass: "rgba(245, 158, 11, 0.10)",
-    border: "rgba(245, 158, 11, 0.28)",
-    glow: "rgba(245, 158, 11, 0.25)",
-  },
-  {
-    name: "Purple Violet",
-    hex: "#8B5CF6",
-    bgGlass: "rgba(139, 92, 246, 0.10)",
-    border: "rgba(139, 92, 246, 0.28)",
-    glow: "rgba(139, 92, 246, 0.25)",
-  },
-  {
-    name: "Rose Coral",
-    hex: "#F43F5E",
-    bgGlass: "rgba(244, 63, 94, 0.10)",
-    border: "rgba(244, 63, 94, 0.28)",
-    glow: "rgba(244, 63, 94, 0.25)",
-  },
-  {
-    name: "Cyan Teal",
-    hex: "#06B6D4",
-    bgGlass: "rgba(6, 182, 212, 0.10)",
-    border: "rgba(6, 182, 212, 0.28)",
-    glow: "rgba(6, 182, 212, 0.25)",
-  },
-  {
-    name: "Indigo Navy",
-    hex: "#6366F1",
-    bgGlass: "rgba(99, 102, 241, 0.10)",
-    border: "rgba(99, 102, 241, 0.28)",
-    glow: "rgba(99, 102, 241, 0.25)",
-  },
-  {
-    name: "Minimal Slate",
-    hex: "#64748B",
-    bgGlass: "rgba(100, 116, 139, 0.10)",
-    border: "rgba(100, 116, 139, 0.28)",
-    glow: "rgba(100, 116, 139, 0.25)",
-  },
+  { name: "Blue", hex: "#0052FF" },
+  { name: "Green", hex: "#10B981" },
+  { name: "Amber", hex: "#F59E0B" },
+  { name: "Violet", hex: "#8B5CF6" },
+  { name: "Rose", hex: "#F43F5E" },
+  { name: "Cyan", hex: "#06B6D4" },
+  { name: "Indigo", hex: "#6366F1" },
+  { name: "Slate", hex: "#64748B" },
 ];
+
+const CONTROL = "h-9 rounded-xl";
+
+/** Title from the first line when the user only typed content. */
+function splitTitle(text: string): { title: string; content: string } {
+  const clean = text.trim();
+  const firstLine = clean.split("\n")[0].trim();
+  const title = firstLine.length > 60 ? `${firstLine.slice(0, 57).trimEnd()}…` : firstLine;
+  return { title: title || "Untitled", content: clean };
+}
+
+function prettyDate(date: string) {
+  const d = new Date(`${date.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return date;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+}
 
 export function NotesView() {
   const { notes, addNote, updateNote, deleteNote } = useApp();
+  const { confirm, confirmDialog } = useConfirm();
 
-  // Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilterColor, setSelectedFilterColor] = useState<string | null>(
-    null,
-  );
+  const [query, setQuery] = useState("");
+  const [colorFilter, setColorFilter] = useState<string | null>(null);
+  const [quickText, setQuickText] = useState("");
+  const [editing, setEditing] = useState<NoteItem | "new" | null>(null);
 
-  // Centered Modal State (For Add & Update)
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [selectedColor, setSelectedColor] = useState(NOTE_COLORS[0].hex);
-  const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [isPinned, setIsPinned] = useState(false);
-
-  const openCreateModal = () => {
-    setModalMode("create");
-    setActiveNoteId(null);
-    setTitle("");
-    setContent("");
-    setSelectedColor(NOTE_COLORS[0].hex);
-    setTags([]);
-    setTagInput("");
-    setIsPinned(false);
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (note: NoteItem) => {
-    setModalMode("edit");
-    setActiveNoteId(note.id);
-    setTitle(note.title);
-    setContent(note.content);
-    setSelectedColor(note.color || NOTE_COLORS[0].hex);
-    setTags(note.tags || []);
-    setTagInput("");
-    setIsPinned(Boolean(note.isPinned));
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setActiveNoteId(null);
-    setTitle("");
-    setContent("");
-    setTags([]);
-    setTagInput("");
-  };
-
-  const handleAddTag = () => {
-    if (tagInput.trim() && !tags.includes(tagInput.trim().toLowerCase())) {
-      setTags([...tags, tagInput.trim().toLowerCase()]);
-      setTagInput("");
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((t) => t !== tagToRemove));
-  };
-
-  const handleSaveNote = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
-
-    if (modalMode === "create") {
-      soundFX.playCheckSound();
-      addNote({
-        title: title.trim(),
-        content: content.trim(),
-        color: selectedColor,
-        isPinned,
-        tags,
-      });
-    } else if (modalMode === "edit" && activeNoteId) {
-      soundFX.playCheckSound();
-      updateNote(activeNoteId, {
-        title: title.trim(),
-        content: content.trim(),
-        color: selectedColor,
-        isPinned,
-        tags,
-      });
-    }
-
-    closeModal();
-  };
-
-  // Filtered & Sorted Notes
-  const filteredNotes = useMemo(() => {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return notes.filter((n) => {
-      const matchesSearch =
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (n.tags &&
-          n.tags.some((t) =>
-            t.toLowerCase().includes(searchQuery.toLowerCase()),
-          ));
-
-      const matchesColor = selectedFilterColor
-        ? n.color === selectedFilterColor
-        : true;
-      return matchesSearch && matchesColor;
+      const matches =
+        !q ||
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q) ||
+        (n.tags || []).some((t) => t.toLowerCase().includes(q));
+      return matches && (!colorFilter || n.color === colorFilter);
     });
-  }, [notes, searchQuery, selectedFilterColor]);
+  }, [notes, query, colorFilter]);
 
-  const activeColorConfig =
-    NOTE_COLORS.find((c) => c.hex === selectedColor) || NOTE_COLORS[0];
+  // Pinned notes first (pinning used to have no effect on order).
+  const pinned = filtered.filter((n) => n.isPinned);
+  const others = filtered.filter((n) => !n.isPinned);
+
+  const handleQuickAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickText.trim()) return;
+    const { title, content } = splitTitle(quickText);
+    soundFX.playCheckSound();
+    addNote({ title, content, color: NOTE_COLORS[0].hex, isPinned: false, tags: [] });
+    setQuickText("");
+  };
+
+  const handleDelete = async (note: NoteItem) => {
+    const ok = await confirm({
+      title: `Delete "${note.title}"?`,
+      description: "This note will be removed for good.",
+      confirmLabel: "Delete note",
+      destructive: true,
+    });
+    if (ok) deleteNote(note.id);
+  };
+
+  const usedColors = NOTE_COLORS.filter((c) => notes.some((n) => n.color === c.hex));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* 1. Header with Title, Live Search & Color Filter Chips */}
+    <ModuleContainer>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-2xl bg-[#0052FF]/10 text-[#0052FF] dark:text-[#60A5FA] shadow-xs">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                Sticky Notes
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Liquid glass canvas for your quick thoughts, code snippets, and
-                ideas.
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Notes & Ideas</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Quick thoughts, snippets and ideas. Pin the ones you keep coming back to.
+          </p>
         </div>
+        <Button onClick={() => setEditing("new")} className={`${CONTROL} px-4 text-xs font-semibold gap-1.5`}>
+          <Plus className="w-3.5 h-3.5" />
+          New note
+        </Button>
+      </div>
 
-        {/* Search Bar & Color Filter Chips */}
-        <div className="flex flex-wrap items-center gap-2.5">
+      {/* Quick capture */}
+      <form onSubmit={handleQuickAdd} className="flex items-center gap-2">
+        <Input
+          placeholder="Jot something down and press Enter…"
+          value={quickText}
+          maxLength={2000}
+          onChange={(e) => setQuickText(e.target.value)}
+          className={`${CONTROL} py-0 text-sm`}
+        />
+        <Button type="submit" disabled={!quickText.trim()} className={`${CONTROL} px-4 text-xs shrink-0`}>
+          Add
+        </Button>
+      </form>
+
+      {/* Search + color filter */}
+      {notes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
           <Input
             leftIcon={<Search className="w-3.5 h-3.5" />}
-            placeholder="Search sticky notes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onClear={() => setSearchQuery("")}
-            containerClassName="w-44 sm:w-56"
+            placeholder="Search notes"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onClear={() => setQuery("")}
+            containerClassName="w-full sm:w-64"
+            className={`${CONTROL} py-0`}
           />
-
-          {/* Color Filter Pill */}
-          <div className="flex items-center gap-1.5 p-1 rounded-full bg-card/80 backdrop-blur-md border border-border shadow-xs">
-            <button
-              onClick={() => setSelectedFilterColor(null)}
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
-                selectedFilterColor === null
-                  ? "bg-foreground text-background shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All ({notes.length})
-            </button>
-            {NOTE_COLORS.map((c) => {
-              const count = notes.filter((n) => n.color === c.hex).length;
-              if (count === 0 && selectedFilterColor !== c.hex) return null;
-              return (
-                <button
-                  key={c.hex}
-                  onClick={() =>
-                    setSelectedFilterColor(
-                      selectedFilterColor === c.hex ? null : c.hex,
-                    )
-                  }
-                  title={`${c.name} (${count})`}
-                  style={{ backgroundColor: c.hex }}
-                  className={`w-4 h-4 rounded-full transition transform active:scale-90 cursor-pointer ${
-                    selectedFilterColor === c.hex
-                      ? "ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110"
-                      : "opacity-80 hover:opacity-100"
-                  }`}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {/* CARD 1: DEDICATED "NEW STICKY NOTE" CARD (Opens Center Modal) */}
-        <button
-          onClick={openCreateModal}
-          className="group min-h-[220px] rounded-3xl border-2 border-dashed border-border/80 hover:border-[#0052FF]/60 bg-muted/20 hover:bg-[#0052FF]/5 backdrop-blur-xl p-6 flex flex-col items-center justify-center text-center gap-3 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer select-none"
-        >
-          <div className="w-12 h-12 rounded-2xl bg-[#0052FF]/10 group-hover:bg-[#0052FF] text-[#0052FF] group-hover:text-white flex items-center justify-center shadow-md transition-all duration-300 group-hover:scale-110">
-            <Plus className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-foreground tracking-tight">
-              New Sticky Note
-            </h4>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Click to jot down a quick idea
-            </p>
-          </div>
-        </button>
-
-        {/* EXISTING STICKY NOTES CARDS */}
-        {filteredNotes.map((note) => {
-          const colorCfg =
-            NOTE_COLORS.find((c) => c.hex === note.color) || NOTE_COLORS[0];
-
-          return (
-            <div
-              key={note.id}
-              onClick={() => openEditModal(note)}
-              style={{
-                backgroundColor: colorCfg.bgGlass,
-                borderColor: colorCfg.border,
-              }}
-              className="group min-h-[220px] rounded-3xl border p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden backdrop-blur-xl cursor-pointer"
-            >
-              {/* Frosted Tape / Top Glow Accent */}
-              <div
-                style={{ backgroundColor: note.color }}
-                className="absolute top-0 left-8 right-8 h-1 rounded-b-full opacity-80 shadow-xs"
-              />
-
-              {/* STICKY NOTE VIEW MODE */}
-              <div className="space-y-2 pt-1">
-                {/* Header: Title + Pin + 3-Dot Options */}
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-sm font-bold text-foreground tracking-tight line-clamp-2 leading-snug">
-                    {note.title}
-                  </h4>
-
-                  <div
-                    className="flex items-center gap-1 shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {/* Pin Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateNote(note.id, { isPinned: !note.isPinned });
-                      }}
-                      title={note.isPinned ? "Pinned" : "Pin to top"}
-                      className={`p-1 rounded-lg transition cursor-pointer ${
-                        note.isPinned
-                          ? "text-amber-500 bg-amber-500/20"
-                          : "text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
-                      }`}
-                    >
-                      <Pin className="w-3.5 h-3.5 fill-current" />
-                    </button>
-
-                    {/* 3-Dot Dropdown Menu */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded-lg text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition cursor-pointer">
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-36 rounded-2xl ios-card border border-border shadow-xl"
-                      >
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditModal(note);
-                          }}
-                          className="text-xs flex items-center gap-2 cursor-pointer"
-                        >
-                          <Edit2 className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Edit Note</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNote(note.id);
-                          }}
-                          className="text-xs flex items-center gap-2 text-rose-500 focus:text-rose-500 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                {/* Body Content */}
-                <p className="text-xs text-foreground/85 leading-relaxed whitespace-pre-wrap line-clamp-5">
-                  {note.content}
-                </p>
-
-                {/* Tag Badges */}
-                {note.tags && note.tags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1 pt-1">
-                    {note.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="px-2 py-0.5 rounded-md bg-background/50 text-[9px] font-semibold text-muted-foreground border border-border/50"
-                      >
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer: Created Date & Glowing Color Dot */}
-              <div className="flex items-center justify-between pt-3 text-[10px] text-muted-foreground">
-                <div className="flex items-center gap-1.5 opacity-80">
-                  <Calendar className="w-3 h-3" />
-                  <span>{note.createdAt}</span>
-                </div>
-
-                <div
-                  style={{ backgroundColor: note.color }}
-                  className="w-2.5 h-2.5 rounded-full shadow-xs"
-                  title={colorCfg.name}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 3. SPACIOUS CENTERED MODAL FOR ADDING & UPDATING STICKY NOTES */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={modalMode === "create" ? "New Sticky Note" : "Edit Sticky Note"}
-        description={
-          modalMode === "create"
-            ? "Capture your thoughts, code snippets, or sprint ideas"
-            : "Update note content, tags, or theme color"
-        }
-        icon={<FileText className="w-5 h-5" />}
-        topAccentColor={selectedColor}
-        maxWidth="lg"
-      >
-        <form onSubmit={handleSaveNote} className="space-y-4 pt-1">
-          {/* Note Title Input */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                Note Title
-              </label>
+          {usedColors.length > 1 && (
+            <div className="flex items-center gap-1.5 h-9 px-2 rounded-xl bg-muted/50 border border-border">
               <button
                 type="button"
-                onClick={() => setIsPinned(!isPinned)}
-                title={isPinned ? "Pinned to top" : "Pin to top"}
-                className={`px-2 py-0.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
-                  isPinned
-                    ? "text-amber-500 bg-amber-500/15"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                onClick={() => setColorFilter(null)}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold cursor-pointer ${
+                  colorFilter === null ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Pin className="w-3.5 h-3.5 fill-current" />
-                <span>{isPinned ? "Pinned" : "Pin"}</span>
+                All
               </button>
-            </div>
-            <Input
-              type="text"
-              required
-              placeholder="e.g., API Architecture Spec, Sprint ideas..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          {/* Content & Details Textarea */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-              Content & Details
-            </label>
-            <textarea
-              rows={4}
-              required
-              placeholder="Write your note, checklist, instructions, code snippet..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl bg-muted/40 border border-border text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-2xs resize-none"
-            />
-          </div>
-
-          {/* Tags Section */}
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Tags & Categories
-            </label>
-            <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-2xl bg-muted/30 border border-border/80 min-h-[42px]">
-              {tags.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-background text-xs font-semibold text-foreground border border-border shadow-2xs"
-                >
-                  <span className="text-muted-foreground">#</span>
-                  <span>{t}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(t)}
-                    className="text-muted-foreground hover:text-rose-500 transition cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
+              {usedColors.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  onClick={() => setColorFilter(colorFilter === c.hex ? null : c.hex)}
+                  aria-label={`Show ${c.name} notes`}
+                  style={{ backgroundColor: c.hex }}
+                  className={`w-4 h-4 rounded-full cursor-pointer transition ${
+                    colorFilter === c.hex ? "ring-2 ring-offset-2 ring-offset-background ring-foreground/70" : "opacity-70 hover:opacity-100"
+                  }`}
+                />
               ))}
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                placeholder="+ Add tag (Press Enter)..."
-                className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none px-2 py-1 flex-1 min-w-[140px]"
-              />
             </div>
+          )}
+        </div>
+      )}
+
+      {notes.length === 0 ? (
+        <div className="p-12 text-center rounded-3xl ios-card border border-border space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
+            <FileText className="w-6 h-6" />
           </div>
+          <h3 className="text-sm font-semibold text-foreground">No notes yet</h3>
+          <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+            Type an idea in the box above and press Enter. That&apos;s it.
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-10">No notes match your search.</p>
+      ) : (
+        <div className="space-y-6">
+          {pinned.length > 0 && (
+            <NoteSection label="Pinned" notes={pinned} onOpen={setEditing} onPin={updateNote} onDelete={handleDelete} />
+          )}
+          {others.length > 0 && (
+            <NoteSection
+              label={pinned.length > 0 ? "Others" : null}
+              notes={others}
+              onOpen={setEditing}
+              onPin={updateNote}
+              onDelete={handleDelete}
+            />
+          )}
+        </div>
+      )}
 
-          {/* Color Theme Selector */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Canvas Color Theme
-              </label>
-              <span className="text-[11px] font-semibold text-foreground">
-                {activeColorConfig.name}
-              </span>
-            </div>
+      {editing && (
+        <NoteEditor
+          key={editing === "new" ? "new" : editing.id}
+          note={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+          onSave={(data) => {
+            soundFX.playCheckSound();
+            if (editing === "new") addNote(data);
+            else updateNote(editing.id, data);
+            setEditing(null);
+          }}
+        />
+      )}
 
-            <div className="flex items-center justify-between p-2 rounded-2xl bg-muted/40 border border-border">
-              {NOTE_COLORS.map((c) => {
-                const isSelected = selectedColor === c.hex;
-                return (
-                  <button
-                    key={c.hex}
-                    type="button"
-                    onClick={() => setSelectedColor(c.hex)}
-                    title={c.name}
-                    style={{ backgroundColor: c.hex }}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                      isSelected
-                        ? "scale-120 shadow-md ring-3 ring-foreground"
-                        : "opacity-70 hover:opacity-100 hover:scale-105"
-                    }`}
-                  >
-                    {isSelected && (
-                      <Check
-                        className="w-4 h-4 text-white drop-shadow-xs"
-                        strokeWidth={3}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+      {confirmDialog}
+    </ModuleContainer>
+  );
+}
+
+function NoteSection({
+  label,
+  notes,
+  onOpen,
+  onPin,
+  onDelete,
+}: {
+  label: string | null;
+  notes: NoteItem[];
+  onOpen: (n: NoteItem) => void;
+  onPin: (id: string, data: Partial<NoteItem>) => void;
+  onDelete: (n: NoteItem) => void;
+}) {
+  return (
+    <section className="space-y-2">
+      {label && <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">{label}</h3>}
+      {/* Masonry columns: each note is as tall as its content */}
+      <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 [column-fill:_balance]">
+        {notes.map((n) => (
+          <NoteCard key={n.id} note={n} onOpen={onOpen} onPin={onPin} onDelete={onDelete} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NoteCard({
+  note,
+  onOpen,
+  onPin,
+  onDelete,
+}: {
+  note: NoteItem;
+  onOpen: (n: NoteItem) => void;
+  onPin: (id: string, data: Partial<NoteItem>) => void;
+  onDelete: (n: NoteItem) => void;
+}) {
+  const color = note.color || NOTE_COLORS[0].hex;
+  // Don't repeat the title when the note's first line is the title.
+  const lines = note.content.trim().split("\n");
+  const body = (lines[0].trim() === note.title.trim() ? lines.slice(1).join("\n") : note.content).trim();
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(note)}
+      onKeyDown={(e) => e.key === "Enter" && onOpen(note)}
+      style={{ backgroundColor: `${color}14`, borderColor: `${color}40` }}
+      className="group break-inside-avoid mb-3 rounded-2xl border p-4 space-y-2 cursor-pointer transition hover:shadow-lg hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <div className="flex items-start gap-2">
+        <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <h4 className="flex-1 text-sm font-semibold text-foreground leading-snug break-words">{note.title}</h4>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPin(note.id, { isPinned: !note.isPinned });
+          }}
+          aria-label={note.isPinned ? "Unpin note" : "Pin note"}
+          className={`p-1 rounded-lg shrink-0 cursor-pointer transition ${
+            note.isPinned
+              ? "text-amber-500"
+              : "text-muted-foreground hover:text-foreground sm:opacity-0 sm:group-hover:opacity-100"
+          }`}
+        >
+          <Pin className={`w-3.5 h-3.5 ${note.isPinned ? "fill-current" : ""}`} />
+        </button>
+      </div>
+
+      {body && (
+        <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap break-words line-clamp-[10]">
+          {body}
+        </p>
+      )}
+
+      {note.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {note.tags.map((t) => (
+            <span key={t} className="px-1.5 py-0.5 rounded-md bg-background/60 text-[10px] font-medium text-muted-foreground">
+              #{t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+        <span>{prettyDate(note.updatedAt || note.createdAt)}</span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(note);
+          }}
+          aria-label="Delete note"
+          className="p-1 rounded-lg cursor-pointer hover:text-rose-500 sm:opacity-0 sm:group-hover:opacity-100 transition"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NoteEditor({
+  note,
+  onClose,
+  onSave,
+}: {
+  note: NoteItem | null;
+  onClose: () => void;
+  onSave: (data: Omit<NoteItem, "id" | "createdAt">) => void;
+}) {
+  const [title, setTitle] = useState(note?.title || "");
+  const [content, setContent] = useState(note?.content || "");
+  const [color, setColor] = useState(note?.color || NOTE_COLORS[0].hex);
+  const [isPinned, setIsPinned] = useState(!!note?.isPinned);
+  const [tags, setTags] = useState<string[]>(note?.tags || []);
+  const [tagInput, setTagInput] = useState("");
+
+  const addTag = () => {
+    const t = tagInput.trim().replace(/^#/, "").toLowerCase();
+    if (t && !tags.includes(t)) setTags([...tags, t]);
+    setTagInput("");
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() && !content.trim()) return;
+    const derived = splitTitle(content || title);
+    onSave({
+      title: title.trim() || derived.title,
+      content: content.trim() || title.trim(),
+      color,
+      isPinned,
+      tags,
+    });
+  };
+
+  return (
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={note ? "Edit note" : "New note"}
+      icon={<FileText className="w-4 h-4" />}
+      topAccentColor={color}
+      maxWidth="lg"
+    >
+      <form onSubmit={submit} className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Input
+            autoFocus={!note}
+            placeholder="Title (optional)"
+            value={title}
+            maxLength={255}
+            onChange={(e) => setTitle(e.target.value)}
+            className={`${CONTROL} py-0 text-sm font-semibold`}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsPinned(!isPinned)}
+            aria-label={isPinned ? "Unpin" : "Pin"}
+            className={`${CONTROL} w-9 p-0 shrink-0 ${isPinned ? "text-amber-500" : ""}`}
+          >
+            <Pin className={`w-3.5 h-3.5 ${isPinned ? "fill-current" : ""}`} />
+          </Button>
+        </div>
+
+        <textarea
+          rows={8}
+          placeholder="Write anything: ideas, a checklist, a code snippet…"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="w-full px-3.5 py-3 rounded-xl bg-muted/50 border border-border text-sm text-foreground leading-relaxed placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y min-h-32"
+        />
+
+        <div className="flex flex-wrap items-center gap-1.5 min-h-9 px-2 py-1 rounded-xl bg-muted/50 border border-border">
+          {tags.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-background text-xs text-foreground">
+              #{t}
+              <button
+                type="button"
+                onClick={() => setTags(tags.filter((x) => x !== t))}
+                aria-label={`Remove tag ${t}`}
+                className="text-muted-foreground hover:text-rose-500 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                addTag();
+              }
+            }}
+            onBlur={addTag}
+            placeholder={tags.length ? "Add tag" : "Tags (press Enter)"}
+            className="flex-1 min-w-28 bg-transparent text-xs py-1 focus:outline-none placeholder:text-muted-foreground/60"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-1.5">
+            {NOTE_COLORS.map((c) => (
+              <button
+                key={c.hex}
+                type="button"
+                onClick={() => setColor(c.hex)}
+                aria-label={c.name}
+                style={{ backgroundColor: c.hex }}
+                className={`w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition ${
+                  color === c.hex ? "ring-2 ring-offset-2 ring-offset-background ring-foreground/70" : "opacity-70 hover:opacity-100"
+                }`}
+              >
+                {color === c.hex && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+              </button>
+            ))}
           </div>
-
-          {/* Modal Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/60">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-foreground rounded-xl transition cursor-pointer"
-            >
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" onClick={onClose} className={`${CONTROL} px-4 text-xs`}>
               Cancel
-            </button>
-            <Button
-              type="submit"
-              disabled={!title.trim() || !content.trim()}
-              style={{ backgroundColor: selectedColor }}
-              className="text-white text-xs font-bold px-5 py-2.5 rounded-2xl shadow-lg transition hover:opacity-90 active:scale-95 cursor-pointer flex items-center gap-1.5"
-            >
-              {modalMode === "create" ? (
-                <>
-                  <Plus className="w-4 h-4" />
-                  <span>Stick It</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Save Changes</span>
-                </>
-              )}
+            </Button>
+            <Button type="submit" disabled={!title.trim() && !content.trim()} className={`${CONTROL} px-4 text-xs`}>
+              {note ? "Save" : "Add note"}
             </Button>
           </div>
-        </form>
-      </Modal>
-    </div>
+        </div>
+      </form>
+    </Modal>
   );
 }

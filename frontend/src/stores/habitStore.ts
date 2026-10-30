@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { createEncryptedStorage } from '@/lib/encryptedStorage';
 import { HabitItem } from '@/lib/types';
 import { habitsApi } from '@/lib/api';
-import { getTodayDateString, soundFX, triggerCelebrationConfetti } from '@/lib/utils';
+import { getTodayDateString, soundFX, triggerCelebrationConfetti, serverIdFrom } from '@/lib/utils';
 import { toast } from '@/components/ui/toast';
 import { useUserStore } from './userStore';
 import { useAnalyticsStore } from './analyticsStore';
@@ -46,7 +46,18 @@ export const useHabitStore = create<HabitStoreState>()(
           reminderEnabled: habit.reminderEnabled ?? (!!habit.timeFrom),
           reminderTime: habit.timeFrom || undefined,
           targetDays: habit.targetDays || [0, 1, 2, 3, 4, 5, 6],
-        }).then(() => {
+        })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                habits: state.habits.map((x) => (x.id === newHabit.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
+          }).then(() => {
           useAnalyticsStore.getState().fetchAnalytics();
         }).catch(() => {});
       },

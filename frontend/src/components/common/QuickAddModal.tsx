@@ -191,32 +191,16 @@ export function QuickAddModal() {
         .split("\n")
         .map((m) => m.trim())
         .filter((m) => m.length > 0)
-        .map((lineText, idx) => ({
-          id: `gm-${Date.now()}-${idx}`,
-          title: lineText,
-          completed: false,
-          progress: 0,
-        }));
+        .map((title) => ({ title }));
 
       addGoal({
         title: goalTitle.trim(),
         category: goalCategory,
         timeframe: goalTimeframe,
-        deadline: goalDeadline,
-        targetMetric: goalTargetMetric.trim() || undefined,
-        progress: 0,
-        color: "#0052FF",
-        milestones:
-          parsedMilestones.length > 0
-            ? parsedMilestones
-            : [
-                {
-                  id: `gm-${Date.now()}`,
-                  title: "Initial Milestone",
-                  completed: false,
-                  progress: 0,
-                },
-              ],
+        deadline: goalDeadline || null,
+        description: goalTargetMetric.trim() || undefined,
+        kind: "project",
+        milestones: parsedMilestones,
       });
       setGoalTitle("");
       setGoalTargetMetric("");

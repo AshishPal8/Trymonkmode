@@ -1,3 +1,4 @@
+import { serverIdFrom } from "@/lib/utils";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createEncryptedStorage } from "@/lib/encryptedStorage";
@@ -35,6 +36,17 @@ export const useCalendarStore = create<CalendarStoreState>()(
             startTime: event.startTime,
             endTime: event.endTime,
             category: event.category,
+          })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                calendarEvents: state.calendarEvents.map((x) => (x.id === newEv.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
           })
           .catch(() => {});
       },

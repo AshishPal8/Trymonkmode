@@ -1,43 +1,13 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { tasks, users, userSettings } from "../../db/schema.js";
+import { tasks, users } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import type { CreateTaskInput, UpdateTaskInput } from "./tasks.schema.js";
 import {
-  scheduleTaskReminderInMemory,
+  scheduleTaskReminder,
   cancelTaskReminder,
 } from "../cron/reminders.cron.js";
-
-async function getUserTimezone(
-  userId: number,
-  requestTz?: string,
-): Promise<string> {
-  const validReqTz =
-    requestTz && requestTz.trim() && requestTz !== "UTC"
-      ? requestTz.trim()
-      : null;
-  const [settings] = await db
-    .select({ timezone: userSettings.timezone })
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
-
-  const dbTz =
-    settings?.timezone && settings.timezone !== "UTC"
-      ? settings.timezone
-      : null;
-  const resolvedTz = validReqTz || dbTz || "Asia/Kolkata";
-
-  // Automatically sync to userSettings in DB if it was still default 'UTC'
-  if (validReqTz && (!settings?.timezone || settings.timezone === "UTC")) {
-    db.update(userSettings)
-      .set({ timezone: validReqTz, updatedAt: new Date() })
-      .where(eq(userSettings.userId, userId))
-      .catch(() => {});
-  }
-
-  return resolvedTz;
-}
+import { resolveGoalLink } from "../goals/goals.service.js";
 
 export async function getTasksService(
   userId: number,
@@ -67,11 +37,13 @@ export async function createTaskService(
   input: CreateTaskInput,
   clientTz?: string,
 ) {
+  const link = await resolveGoalLink(userId, input.goalId, input.milestoneId);
   const [created] = await db
     .insert(tasks)
     .values({
       userId,
-      goalId: input.goalId,
+      goalId: link.goalId,
+      milestoneId: link.milestoneId,
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -91,9 +63,7 @@ export async function createTaskService(
 
   // Instantly schedule in-memory reminder if dueTime is provided
   if (created.dueTime) {
-    getUserTimezone(userId, clientTz).then((tz) => {
-      scheduleTaskReminderInMemory(created, tz);
-    });
+    scheduleTaskReminder(created, clientTz).catch(() => {});
   }
 
   return created;
@@ -114,6 +84,22 @@ export async function updateTaskService(
     updateData.reminderSent = false;
   }
 
+  if (input.goalId !== undefined || input.milestoneId !== undefined) {
+    if (input.goalId === null) {
+      // Unlink from any goal
+      updateData.goalId = null;
+      updateData.milestoneId = null;
+    } else if (input.goalId === undefined && input.milestoneId === null) {
+      // Only take it out of its milestone, keep the goal
+      updateData.milestoneId = null;
+    } else {
+      // A new goal without a milestone clears the old milestone.
+      const link = await resolveGoalLink(userId, input.goalId, input.milestoneId ?? null);
+      updateData.goalId = link.goalId;
+      updateData.milestoneId = link.milestoneId;
+    }
+  }
+
   const [updated] = await db
     .update(tasks)
     .set(updateData)
@@ -126,9 +112,7 @@ export async function updateTaskService(
 
   // Update in-memory timer
   if (updated.dueTime && !updated.completed) {
-    getUserTimezone(userId, clientTz).then((tz) => {
-      scheduleTaskReminderInMemory(updated, tz);
-    });
+    scheduleTaskReminder(updated, clientTz).catch(() => {});
   } else {
     cancelTaskReminder(taskId);
   }
@@ -164,9 +148,7 @@ export async function toggleTaskService(userId: number, taskId: number) {
       .set({ xp: sql`${users.xp} + 25` })
       .where(eq(users.id, userId));
   } else if (updated.dueTime) {
-    getUserTimezone(userId).then((tz) => {
-      scheduleTaskReminderInMemory(updated, tz);
-    });
+    scheduleTaskReminder(updated).catch(() => {});
   }
 
   return { task: updated, xpGained: nextCompleted ? 25 : 0 };
