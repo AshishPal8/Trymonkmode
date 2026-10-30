@@ -28,7 +28,7 @@ import { useGoalsStore } from "./goalsStore";
 import { useCalendarStore } from "./calendarStore";
 import { useFinanceStore } from "./financeStore";
 import { useBookmarksStore } from "./bookmarksStore";
-import { useFocusStore } from "./focusStore";
+import { useFocusStore, todayFocusMinutes as todayFocusMinutesOf } from "./focusStore";
 import { useAnalyticsStore } from "./analyticsStore";
 import { useUIStore } from "./uiStore";
 
@@ -55,7 +55,7 @@ export function useApp() {
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const balance = totalIncome - totalExpense;
-  const todayFocusMinutes = focusStore.getTodayFocusMinutes();
+  const todayFocusMinutes = todayFocusMinutesOf(focusStore.focusSessions);
 
   const quests: DailyQuest[] = [
     {
@@ -218,6 +218,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (typeof document !== 'undefined') {
           document.title = `(${timeStr}) ⏱️ Stopwatch • TryMonkMode`;
         }
+      } else if (typeof document !== 'undefined' && document.title.includes(' • TryMonkMode')) {
+        // Timer stopped or paused: drop the countdown from the tab title.
+        document.title = DEFAULT_TITLE;
       }
     }, 500);
 

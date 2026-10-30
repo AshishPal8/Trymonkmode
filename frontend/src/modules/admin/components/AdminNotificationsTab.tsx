@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { BellRing, CheckCircle2, Eye, Megaphone, RefreshCw, Smartphone, XCircle } from "lucide-react";
 import { notificationsApi } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
@@ -51,6 +52,7 @@ const OPEN_MODULES = [
 ];
 
 export function AdminNotificationsTab() {
+  const { confirm, confirmDialog } = useConfirm();
   const [stats, setStats] = useState<Stats | null>(null);
   const [days, setDays] = useState(7);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,9 +86,12 @@ export function AdminNotificationsTab() {
     if (!title.trim() || !body.trim()) return;
 
     const audienceLabel = AUDIENCES.find((a) => a.value === audience)?.label.toLowerCase();
-    if (!window.confirm(`Send "${title.trim()}" to ${audienceLabel}? This can't be undone.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Send to ${audienceLabel}?`,
+      description: `"${title.trim()}" goes out as a push and lands in their inbox. This can't be undone.`,
+      confirmLabel: "Send announcement",
+    });
+    if (!ok) return;
 
     setIsSending(true);
     try {
@@ -266,6 +271,7 @@ export function AdminNotificationsTab() {
           </Button>
         </form>
       </div>
+      {confirmDialog}
     </div>
   );
 }

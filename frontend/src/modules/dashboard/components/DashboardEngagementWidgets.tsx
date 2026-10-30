@@ -8,7 +8,7 @@ import {
   Trophy,
   ArrowRight,
 } from "lucide-react";
-import { TaskItem, HabitItem } from "@/lib/types";
+import { TaskItem, HabitItem, ActiveModuleId } from "@/lib/types";
 
 const STOIC_QUOTES = [
   {
@@ -57,7 +57,7 @@ interface DashboardEngagementWidgetsProps {
   habits: HabitItem[];
   todayStr: string;
   todayFocusMinutes: number;
-  onNavigate: (module: any) => void;
+  onNavigate: (module: ActiveModuleId) => void;
 }
 
 export function DashboardEngagementWidgets({
@@ -80,20 +80,32 @@ export function DashboardEngagementWidgets({
     (t) => t.dueDate === todayStr || (!t.completed && t.dueDate < todayStr),
   );
   const completedTodayTasks = todayTasks.filter((t) => t.completed).length;
-  const taskRatio =
-    todayTasks.length > 0 ? completedTodayTasks / todayTasks.length : 0.5;
+  const taskRatio = todayTasks.length > 0 ? completedTodayTasks / todayTasks.length : null;
 
   const completedTodayHabits = habits.filter((h) =>
     h.completedDates.includes(todayStr),
   ).length;
+  // Only habits planned for today count.
+  const todayDow = new Date(`${todayStr}T12:00:00`).getDay();
+  const habitsDueToday = habits.filter((h) => (h.targetDays || [0, 1, 2, 3, 4, 5, 6]).includes(todayDow));
   const habitRatio =
-    habits.length > 0 ? completedTodayHabits / habits.length : 0.5;
+    habitsDueToday.length > 0
+      ? habitsDueToday.filter((h) => h.completedDates.includes(todayStr)).length / habitsDueToday.length
+      : null;
 
   const focusTarget = 90; // 90 minutes deep work daily target
   const focusRatio = Math.min(1, todayFocusMinutes / focusTarget);
 
+  // Weighted average of the parts that apply today. Missing parts are left
+  // out instead of counting as 50% (no tasks + no habits used to show 55).
+  const parts = [
+    { ratio: taskRatio, weight: 0.35 },
+    { ratio: habitRatio, weight: 0.4 },
+    { ratio: focusRatio, weight: 0.25 },
+  ].filter((p): p is { ratio: number; weight: number } => p.ratio !== null);
+  const totalWeight = parts.reduce((n, p) => n + p.weight, 0);
   const harmonyScore = Math.round(
-    (taskRatio * 0.35 + habitRatio * 0.4 + focusRatio * 0.25) * 100,
+    (parts.reduce((n, p) => n + p.ratio * p.weight, 0) / (totalWeight || 1)) * 100,
   );
 
   const getScoreTier = (score: number) => {
@@ -213,27 +225,27 @@ export function DashboardEngagementWidgets({
 
         {/* Multi-segment Progress Bar */}
         <div className="space-y-1">
+          {/* Each segment's width = its share of the score */}
           <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden flex">
-            <div
-              className="bg-emerald-500 h-full transition-all duration-500"
-              style={{ width: `${Math.round(taskRatio * 35)}%` }}
-              title="Tasks Contribution"
-            />
-            <div
-              className="bg-[#0052FF] h-full transition-all duration-500"
-              style={{ width: `${Math.round(habitRatio * 40)}%` }}
-              title="Habits Contribution"
-            />
-            <div
-              className="bg-amber-500 h-full transition-all duration-500"
-              style={{ width: `${Math.round(focusRatio * 25)}%` }}
-              title="Focus Contribution"
-            />
+            {[
+              { ratio: taskRatio, weight: 0.35, color: "bg-emerald-500", title: "Tasks" },
+              { ratio: habitRatio, weight: 0.4, color: "bg-[#0052FF]", title: "Habits" },
+              { ratio: focusRatio, weight: 0.25, color: "bg-amber-500", title: "Focus" },
+            ].map((p) =>
+              p.ratio === null ? null : (
+                <div
+                  key={p.title}
+                  className={`${p.color} h-full transition-all duration-500`}
+                  style={{ width: `${Math.round(((p.ratio * p.weight) / (totalWeight || 1)) * 100)}%` }}
+                  title={`${p.title} contribution`}
+                />
+              ),
+            )}
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>Tasks ({Math.round(taskRatio * 100)}%)</span>
-            <span>Habits ({Math.round(habitRatio * 100)}%)</span>
-            <span>Focus ({todayFocusMinutes}m)</span>
+            <span>Tasks ({taskRatio === null ? "none due" : `${Math.round(taskRatio * 100)}%`})</span>
+            <span>Habits ({habitRatio === null ? "none today" : `${Math.round(habitRatio * 100)}%`})</span>
+            <span>Focus ({todayFocusMinutes}m / 90m)</span>
           </div>
         </div>
 

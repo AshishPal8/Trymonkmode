@@ -1,6 +1,6 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { tasks, habits, users, userSettings } from "../../db/schema.js";
+import { tasks, habits, users, userSettings, focusSessions } from "../../db/schema.js";
 
 export interface DailyVelocity {
   day: string; // 'Mon', 'Tue', ...
@@ -60,26 +60,55 @@ const CATEGORY_COLORS = [
 export async function getAnalyticsService(
   userId: number,
 ): Promise<AnalyticsSummary> {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  const [settings] = await db
-    .select()
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
+  // All independent, so run them together.
+  const [[user], [settings], userTasks, userHabits, recentFocus] = await Promise.all([
+    db.select().from(users).where(eq(users.id, userId)).limit(1),
+    db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1),
+    db.select().from(tasks).where(eq(tasks.userId, userId)).orderBy(desc(tasks.createdAt)),
+    db.select().from(habits).where(eq(habits.userId, userId)),
+    db
+      .select({
+        minutes: focusSessions.durationMinutes,
+        startedAt: focusSessions.startedAt,
+        endedAt: focusSessions.endedAt,
+      })
+      .from(focusSessions)
+      .where(
+        and(
+          eq(focusSessions.userId, userId),
+          // A year back, for the streak; the weekly chart only uses the last 7 days.
+          gte(focusSessions.endedAt, new Date(Date.now() - 366 * 86400000)),
+        ),
+      ),
+  ]);
 
-  const userTasks = await db
-    .select()
-    .from(tasks)
-    .where(eq(tasks.userId, userId))
-    .orderBy(desc(tasks.createdAt));
-  const userHabits = await db
-    .select()
-    .from(habits)
-    .where(eq(habits.userId, userId));
+  // Days are counted in the user's timezone, not the server's.
+  const tz =
+    settings?.timezone && settings.timezone !== "UTC" ? settings.timezone : "Asia/Kolkata";
+  const localDateStr = (d: Date) => {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+    } catch {
+      return d.toISOString().slice(0, 10);
+    }
+  };
+  const localHour = (d: Date) => {
+    try {
+      return Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(d)) % 24;
+    } catch {
+      return d.getHours();
+    }
+  };
+  const focusMinutesByDay = new Map<string, number>();
+  for (const f of recentFocus) {
+    const key = localDateStr(f.endedAt);
+    focusMinutesByDay.set(key, (focusMinutesByDay.get(key) || 0) + f.minutes);
+  }
 
   const totalTasks = userTasks.length;
   const completedTasks = userTasks.filter((t) => t.completed).length;
@@ -92,14 +121,12 @@ export async function getAnalyticsService(
   const now = new Date();
 
   for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(now.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const dayName = dayNames[d.getDay()];
+    const d = new Date(now.getTime() - i * 86400000);
+    const dateStr = localDateStr(d);
+    const dayName = dayNames[new Date(`${dateStr}T12:00:00Z`).getUTCDay()];
     past7Days.push({ dateStr, dayName });
   }
 
-  const focusPerTaskMinutes = settings?.focusDuration || 25;
   let maxDayScore = 0;
 
   const dailyVelocity: DailyVelocity[] = past7Days.map(
@@ -107,7 +134,7 @@ export async function getAnalyticsService(
       const tasksDoneOnDay = userTasks.filter(
         (t) =>
           t.completed &&
-          String(t.updatedAt || t.createdAt).slice(0, 10) === dateStr,
+          localDateStr(new Date(t.updatedAt || t.createdAt)) === dateStr,
       ).length;
 
       let habitsDoneOnDay = 0;
@@ -118,11 +145,10 @@ export async function getAnalyticsService(
         }
       });
 
+      // Real focus time from saved sessions (it used to be estimated as
+      // tasks × 25 min, which had nothing to do with the timer).
       const estimatedFocusHours = Number(
-        (
-          (tasksDoneOnDay * focusPerTaskMinutes + habitsDoneOnDay * 15) /
-          60
-        ).toFixed(1),
+        ((focusMinutesByDay.get(dateStr) || 0) / 60).toFixed(1),
       );
       const dayScore =
         tasksDoneOnDay * 2 + habitsDoneOnDay + estimatedFocusHours;
@@ -168,10 +194,12 @@ export async function getAnalyticsService(
   userHabits.forEach((h) => {
     const targetDays = (h.targetDays as number[]) || [0, 1, 2, 3, 4, 5, 6];
     const completedDates = (h.completedDates as string[]) || [];
+    // Days before the habit existed don't count against it.
+    const createdDay = localDateStr(new Date(h.createdAt));
 
     past7Days.forEach(({ dateStr, dayName }) => {
       const dayIndex = dayNames.indexOf(dayName);
-      if (targetDays.includes(dayIndex)) {
+      if (dateStr >= createdDay && targetDays.includes(dayIndex)) {
         totalHabitOpportunities++;
         if (completedDates.includes(dateStr)) {
           totalHabitsCompletedThisWeek++;
@@ -196,58 +224,85 @@ export async function getAnalyticsService(
         )
       : 0;
 
-  let morningTasks = 0;
-  let afternoonTasks = 0;
-  let eveningTasks = 0;
+  // Best time of day, from when the user actually focuses and finishes tasks
+  // in the last 30 days (it used to guess from task due times).
+  const BUCKETS = [
+    { key: "early", label: "5:00 AM – 9:00 AM", name: "early morning", from: 5, to: 9 },
+    { key: "morning", label: "9:00 AM – 1:00 PM", name: "morning", from: 9, to: 13 },
+    { key: "afternoon", label: "1:00 PM – 5:00 PM", name: "afternoon", from: 13, to: 17 },
+    { key: "evening", label: "5:00 PM – 10:00 PM", name: "evening", from: 17, to: 22 },
+    { key: "night", label: "10:00 PM – 5:00 AM", name: "late night", from: 22, to: 29 },
+  ];
+  const bucketOf = (hour: number) =>
+    BUCKETS.find((b) => (hour >= b.from && hour < b.to) || (hour + 24 >= b.from && hour + 24 < b.to)) || BUCKETS[1];
+  const monthAgo = now.getTime() - 30 * 86400000;
+  const bucketScore = new Map<string, number>();
+  for (const f of recentFocus) {
+    if (f.endedAt.getTime() < monthAgo) continue;
+    const b = bucketOf(localHour(f.startedAt));
+    bucketScore.set(b.key, (bucketScore.get(b.key) || 0) + f.minutes);
+  }
+  for (const t of userTasks) {
+    const doneAt = new Date(t.updatedAt || t.createdAt);
+    if (!t.completed || doneAt.getTime() < monthAgo) continue;
+    const b = bucketOf(localHour(doneAt));
+    bucketScore.set(b.key, (bucketScore.get(b.key) || 0) + 15); // a finished task ≈ 15 focused minutes
+  }
+  const best = [...bucketScore.entries()].sort((a, b) => b[1] - a[1])[0];
 
-  userTasks.forEach((t) => {
-    const time = t.dueTime || "09:00";
-    const hour = parseInt(time.split(":")[0], 10) || 9;
-    if (hour >= 6 && hour < 13) morningTasks++;
-    else if (hour >= 13 && hour < 18) afternoonTasks++;
-    else eveningTasks++;
-  });
-
-  let optimalTimeWindow = "9:00 AM – 12:30 PM";
+  let optimalTimeWindow = "Not enough data yet";
   let optimalTimeDescription =
-    "Plan deep work during morning hours to maximize uninterrupted flow state.";
-
-  if (hasActivity) {
-    if (afternoonTasks > morningTasks && afternoonTasks >= eveningTasks) {
-      optimalTimeWindow = "1:30 PM – 5:30 PM";
-      optimalTimeDescription = `Your task velocity and focus peak during mid-afternoon sprints. ${peakDayName} is historically your highest-output day.`;
-    } else if (eveningTasks > morningTasks && eveningTasks > afternoonTasks) {
-      optimalTimeWindow = "6:00 PM – 10:00 PM";
-      optimalTimeDescription = `Your deep-work throughput peaks during quiet evening hours. ${peakDayName} is historically your highest-output day.`;
-    } else {
-      optimalTimeWindow = "9:00 AM – 12:30 PM";
-      optimalTimeDescription = `Your task completion speed and focus sessions peak during morning hours. ${peakDayName} is historically your highest-output day.`;
-    }
-  } else {
-    optimalTimeDescription =
-      "Complete tasks and start focus sessions to calibrate your personalized biological peak window.";
+    "Finish a few tasks and focus sessions this week, and your best time of day will show up here.";
+  if (best) {
+    const bucket = BUCKETS.find((b) => b.key === best[0])!;
+    optimalTimeWindow = bucket.label;
+    optimalTimeDescription = `Most of your focus and finished tasks in the last 30 days happened in the ${bucket.name}.${
+      hasActivity ? ` ${peakDayName} was your strongest day this week.` : ""
+    } Plan your hardest work then.`;
   }
 
-  const streak = user?.streak || 0;
+  // Streak = consecutive days with any real activity (a task done, a habit
+  // checked in, or a focus session). It used to read users.streak, which was
+  // set to 1 at signup and never updated.
+  const activeDays = new Set<string>();
+  for (const t of userTasks) {
+    if (t.completed) activeDays.add(localDateStr(new Date(t.updatedAt || t.createdAt)));
+  }
+  for (const h of userHabits) {
+    for (const d of (h.completedDates as string[]) || []) activeDays.add(d);
+  }
+  for (const f of recentFocus) activeDays.add(localDateStr(f.endedAt));
+
+  let streak = 0;
+  for (let i = 0; i < 366; i++) {
+    const day = localDateStr(new Date(now.getTime() - i * 86400000));
+    if (activeDays.has(day)) streak++;
+    else if (i === 0) continue; // nothing yet today doesn't break yesterday's streak
+    else break;
+  }
+  if (user && user.streak !== streak) {
+    db.update(users).set({ streak }).where(eq(users.id, userId)).catch(() => {});
+  }
+  // Labels only describe the user's own numbers (no made-up "Top X%").
   const velocityTier =
     weeklyAdherenceRate >= 90 && streak >= 7
-      ? "Top 2% Flow Master Tier"
+      ? "Flow master"
       : weeklyAdherenceRate >= 70
-        ? "Top 10% High Velocity Tier"
+        ? "High velocity"
         : streak >= 3
-          ? "Active Momentum Tier"
-          : "Getting Started Tier";
+          ? "Building momentum"
+          : "Getting started";
 
   const flowStateTier =
     streak >= 14
-      ? "Top 1%"
+      ? `${streak}-day streak · Unstoppable`
       : streak >= 7
-        ? "Top 5%"
+        ? `${streak}-day streak · On fire`
         : streak >= 3
-          ? "Top 15%"
+          ? `${streak}-day streak · Building`
           : streak >= 1
-            ? "Top 30%"
-            : "Building Flow";
+            ? `${streak}-day streak`
+            : "Start a streak today";
 
   const categoryCounts: Record<string, number> = {};
   userTasks.forEach((t) => {

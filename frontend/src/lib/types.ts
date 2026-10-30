@@ -75,6 +75,8 @@ export interface TaskItem {
   completedAt?: string;
   quadrant: 'urgent-important' | 'notUrgent-important' | 'urgent-notImportant' | 'notUrgent-notImportant';
   createdAt: string;
+  goalId?: string | null;
+  milestoneId?: string | null;
 }
 
 export interface HabitItem {
@@ -139,24 +141,65 @@ export interface NoteItem {
   updatedAt?: string;
 }
 
+export type GoalKind = 'project' | 'target' | 'focus';
+export type GoalStatus = 'active' | 'paused' | 'done';
+
 export interface GoalMilestone {
   id: string;
   title: string;
+  dueDate?: string | null;
   completed: boolean;
-  progress: number;
+  taskTotal: number;
+  taskDone: number;
 }
 
+/** A goal is also a project: milestones + linked tasks + focus time. */
 export interface GoalItem {
   id: string;
   title: string;
-  category: 'Career' | 'Fitness' | 'Finance' | 'Learning' | 'Personal';
-  timeframe: 'yearly' | 'monthly' | 'weekly';
-  deadline: string;
-  progress: number; // 0-100
-  color: string;
-  milestones: GoalMilestone[];
+  description?: string;
+  why?: string;
+  category: string;
+  timeframe: string;
+  kind: GoalKind;
+  status: GoalStatus;
   targetMetric?: string;
+  unit?: string;
+  currentProgress: number;
+  targetProgress: number;
+  targetFocusMinutes?: number | null;
+  startDate?: string | null;
+  deadline?: string | null;
+  color: string;
+  icon: string;
+  // Computed by the server
+  progress: number; // 0-100
+  focusMinutes: number;
+  taskTotal: number;
+  taskDone: number;
+  nextTask?: { title: string; dueDate: string } | null;
+  milestones: GoalMilestone[];
   createdAt: string;
+}
+
+/** What the create / edit form sends. */
+export interface GoalInput {
+  title: string;
+  why?: string;
+  description?: string;
+  category?: string;
+  timeframe?: string;
+  kind?: GoalKind;
+  status?: GoalStatus;
+  unit?: string;
+  currentProgress?: number;
+  targetProgress?: number;
+  targetFocusMinutes?: number;
+  startDate?: string | null;
+  deadline?: string | null;
+  color?: string;
+  icon?: string;
+  milestones?: { title: string; dueDate?: string | null }[];
 }
 
 export interface BookmarkItem {
@@ -194,6 +237,8 @@ export interface FocusSession {
   mode?: string;
   tag?: string;
   timestamp?: string;
+  notes?: string;
+  completed?: boolean;
 }
 
 export interface DailyQuest {

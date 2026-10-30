@@ -206,8 +206,16 @@ export const goalsApi = {
   getGoals: (timeframe?: string) =>
     api.get("/goals", { params: { timeframe } }),
   createGoal: (data: any) => api.post("/goals", data),
+  getGoal: (id: number) => api.get(`/goals/${id}`),
   updateGoal: (id: number, data: any) => api.patch(`/goals/${id}`, data),
   deleteGoal: (id: number) => api.delete(`/goals/${id}`),
+  createMilestone: (goalId: number, data: { title: string; dueDate?: string | null }) =>
+    api.post(`/goals/${goalId}/milestones`, data),
+  updateMilestone: (
+    milestoneId: number,
+    data: { title?: string; dueDate?: string | null; completed?: boolean; orderIndex?: number },
+  ) => api.patch(`/goals/milestones/${milestoneId}`, data),
+  deleteMilestone: (milestoneId: number) => api.delete(`/goals/milestones/${milestoneId}`),
 };
 
 export const notesApi = {
@@ -281,6 +289,21 @@ export const uploadApi = {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
+};
+
+export const focusApi = {
+  getSessions: (days = 90) => api.get("/focus/sessions", { params: { days } }),
+  createSession: (input: {
+    durationMinutes: number;
+    plannedMinutes: number;
+    completed: boolean;
+    mode: "pomodoro" | "stopwatch";
+    tag: string;
+    taskId?: number;
+    notes?: string;
+    startedAt: string;
+    endedAt: string;
+  }) => api.post("/focus/sessions", input),
 };
 
 export const notificationsApi = {

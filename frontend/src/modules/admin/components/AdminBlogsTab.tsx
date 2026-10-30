@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { blogsApi } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ export interface BlogRecord {
 }
 
 export function AdminBlogsTab() {
+  const { confirm, confirmDialog } = useConfirm();
   const [blogsList, setBlogsList] = useState<BlogRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -201,7 +203,13 @@ export function AdminBlogsTab() {
 
   // Delete Blog
   const handleDeleteBlog = async (blog: BlogRecord) => {
-    if (!confirm(`Are you sure you want to delete "${blog.title}"?`)) return;
+    const ok = await confirm({
+      title: `Delete "${blog.title}"?`,
+      description: "The post is removed from the blog. This can't be undone.",
+      confirmLabel: "Delete post",
+      destructive: true,
+    });
+    if (!ok) return;
 
     setBlogsList((prev) => prev.filter((b) => b.id !== blog.id));
     try {
@@ -750,6 +758,7 @@ export function AdminBlogsTab() {
           </div>
         </form>
       </Modal>
+      {confirmDialog}
     </div>
   );
 }

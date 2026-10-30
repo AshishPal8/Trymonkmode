@@ -13,7 +13,7 @@ import {
   Play,
   CheckCircle2,
 } from "lucide-react";
-import { useFocusStore, DayFocusStat } from "@/stores/focusStore";
+import { useFocusStore, DayFocusStat, todayFocusMinutes, past7DaysFocus, focusStreak } from "@/stores/focusStore";
 import { Button } from "@/components/ui/button";
 
 interface FocusAnalyticsCardProps {
@@ -25,20 +25,14 @@ export function FocusAnalyticsCard({
   onFlipBack,
   onStartSprint,
 }: FocusAnalyticsCardProps) {
-  const {
-    getTodayFocusMinutes,
-    getPast7DaysFocus,
-    get7DayTotalMinutes,
-    getDailyAverageMinutes,
-    getFocusStreak,
-    focusSessions,
-  } = useFocusStore();
+  const focusSessions = useFocusStore((s) => s.focusSessions);
 
-  const todayMinutes = getTodayFocusMinutes();
-  const past7Days: DayFocusStat[] = getPast7DaysFocus();
-  const total7DayMinutes = get7DayTotalMinutes();
-  const dailyAverage = getDailyAverageMinutes();
-  const streak = getFocusStreak();
+  // Computed from the sessions list so they update when sessions load.
+  const todayMinutes = todayFocusMinutes(focusSessions);
+  const past7Days: DayFocusStat[] = past7DaysFocus(focusSessions);
+  const total7DayMinutes = past7Days.reduce((acc, d) => acc + d.minutes, 0);
+  const dailyAverage = Math.round(total7DayMinutes / 7);
+  const streak = focusStreak(focusSessions);
 
   // Find max minutes in past 7 days to scale graph heights proportionally
   const maxMinutes = Math.max(120, ...past7Days.map((d) => d.minutes));

@@ -2,15 +2,18 @@
 
 import React from 'react';
 import { TaskItem } from '@/lib/types';
+import { formatDatePretty } from '@/lib/utils';
 import { MapPin, Clock, Edit2, ChevronRight, Check, Sparkles, Plus } from 'lucide-react';
 
 interface HeroFocusTaskProps {
   task?: TaskItem;
+  isOverdue?: boolean;
+  isUpcoming?: boolean;
   onMarkDone: (id: string) => void;
   onEdit: () => void;
 }
 
-export function HeroFocusTask({ task, onMarkDone, onEdit }: HeroFocusTaskProps) {
+export function HeroFocusTask({ task, isOverdue, isUpcoming, onMarkDone, onEdit }: HeroFocusTaskProps) {
   if (!task) {
     return (
       <div className="ios-card rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-center space-y-3 relative overflow-hidden transition shadow-sm border border-border">
@@ -49,13 +52,17 @@ export function HeroFocusTask({ task, onMarkDone, onEdit }: HeroFocusTaskProps) 
               </span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {task.description || 'Priority task for today'}
+              {task.description ||
+                (isOverdue ? 'Overdue: worth finishing first' : isUpcoming ? 'Next up (nothing due today)' : 'Your most important task today')}
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs text-muted-foreground font-medium">
               <span className="flex items-center gap-1 font-mono">
                 <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>{task.dueTime || 'Today'}</span>
+                <span className={isOverdue ? 'text-rose-500' : ''}>
+                  {isOverdue || isUpcoming ? formatDatePretty(task.dueDate) : 'Today'}
+                  {task.dueTime ? ` · ${task.dueTime}` : ''}
+                </span>
               </span>
             </div>
           </div>

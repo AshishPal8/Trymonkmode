@@ -7,6 +7,7 @@ import {
   scheduleTaskReminder,
   cancelTaskReminder,
 } from "../cron/reminders.cron.js";
+import { resolveGoalLink } from "../goals/goals.service.js";
 
 export async function getTasksService(
   userId: number,
@@ -36,11 +37,13 @@ export async function createTaskService(
   input: CreateTaskInput,
   clientTz?: string,
 ) {
+  const link = await resolveGoalLink(userId, input.goalId, input.milestoneId);
   const [created] = await db
     .insert(tasks)
     .values({
       userId,
-      goalId: input.goalId,
+      goalId: link.goalId,
+      milestoneId: link.milestoneId,
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -79,6 +82,22 @@ export async function updateTaskService(
 
   if (input.dueDate !== undefined || input.dueTime !== undefined) {
     updateData.reminderSent = false;
+  }
+
+  if (input.goalId !== undefined || input.milestoneId !== undefined) {
+    if (input.goalId === null) {
+      // Unlink from any goal
+      updateData.goalId = null;
+      updateData.milestoneId = null;
+    } else if (input.goalId === undefined && input.milestoneId === null) {
+      // Only take it out of its milestone, keep the goal
+      updateData.milestoneId = null;
+    } else {
+      // A new goal without a milestone clears the old milestone.
+      const link = await resolveGoalLink(userId, input.goalId, input.milestoneId ?? null);
+      updateData.goalId = link.goalId;
+      updateData.milestoneId = link.milestoneId;
+    }
   }
 
   const [updated] = await db

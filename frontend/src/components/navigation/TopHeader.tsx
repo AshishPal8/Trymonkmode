@@ -41,7 +41,7 @@ export function TopHeader() {
       case "matrix":
         return "Matrix";
       case "goals":
-        return "Goals & OKRs";
+        return "Goals & Projects";
       case "pomodoro":
       case "stopwatch":
         return "Focus Timer";

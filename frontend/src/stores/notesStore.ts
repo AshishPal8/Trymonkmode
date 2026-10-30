@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { createEncryptedStorage } from "@/lib/encryptedStorage";
 import { NoteItem } from "@/lib/types";
 import { notesApi } from "@/lib/api";
-import { getTodayDateString } from "@/lib/utils";
+import { getTodayDateString, serverIdFrom } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { useUserStore } from "./userStore";
 
@@ -42,6 +42,17 @@ export const useNotesStore = create<NotesStoreState>()(
             tags: note.tags,
             isPinned: note.isPinned,
             color: note.color,
+          })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                notes: state.notes.map((x) => (x.id === newNote.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
           })
           .catch(() => {});
       },

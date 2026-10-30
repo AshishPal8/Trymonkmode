@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { createEncryptedStorage } from "@/lib/encryptedStorage";
 import { JournalEntry } from "@/lib/types";
 import { journalApi } from "@/lib/api";
-import { getTodayDateString, soundFX } from "@/lib/utils";
+import { getTodayDateString, soundFX, serverIdFrom } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { useUserStore } from "./userStore";
 
@@ -44,6 +44,17 @@ export const useJournalStore = create<JournalStoreState>()(
             promptQuestion: entry.dailyPrompt,
             promptAnswer: entry.dailyPromptAnswer,
             tags: entry.stickers,
+          })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                journalEntries: state.journalEntries.map((x) => (x.id === newEntry.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
           })
           .catch(() => {});
       },

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { settingsApi, SystemFlag } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
 import { Cpu, Clock, Plus, Trash2, RefreshCw, Sliders } from "lucide-react";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function AdminSystemSettingsTab() {
+  const { confirm, confirmDialog } = useConfirm();
   const [flags, setFlags] = useState<SystemFlag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingKey, setUpdatingKey] = useState<string | null>(null);
@@ -93,7 +95,13 @@ export function AdminSystemSettingsTab() {
   };
 
   const handleDeleteFlag = async (key: string) => {
-    if (!confirm(`Delete flag '${key}'?`)) return;
+    const ok = await confirm({
+      title: `Delete flag "${key}"?`,
+      description: "Anything reading this flag falls back to its default.",
+      confirmLabel: "Delete flag",
+      destructive: true,
+    });
+    if (!ok) return;
 
     try {
       await settingsApi.deleteFlag(key);
@@ -305,6 +313,7 @@ export function AdminSystemSettingsTab() {
           </form>
         </Modal>
       )}
+      {confirmDialog}
     </div>
   );
 }

@@ -6,26 +6,29 @@ import { UserProfile } from '@/lib/types';
 
 interface AnalyticsMetricsBarProps {
   user: UserProfile;
-  totalFocusHours: string;
+  streak: number;
+  /** Focus hours over the last 7 days. */
+  weekFocusHours: string;
   todayFocusMinutes?: number;
-  taskCompletionRate: number;
+  /** null = nothing to measure (shows a dash). */
+  taskRate: number | null;
+  taskLabel: string;
+  taskDetail: string;
 }
 
 export function AnalyticsMetricsBar({
   user,
-  totalFocusHours,
+  streak,
+  weekFocusHours,
   todayFocusMinutes = 0,
-  taskCompletionRate
+  taskRate,
+  taskLabel,
+  taskDetail,
 }: AnalyticsMetricsBarProps) {
+  const taskCompletionRate = taskRate ?? 0;
   const xpPercent = Math.min(100, Math.round((user.xp / (user.xpToNextLevel || 1000)) * 100));
 
-  const velocityLabel = taskCompletionRate >= 80
-    ? 'High velocity'
-    : taskCompletionRate >= 50
-      ? 'Steady pace'
-      : taskCompletionRate > 0
-        ? 'In progress'
-        : 'Ready to start';
+  const velocityLabel = taskDetail;
 
   const velocityColor = taskCompletionRate >= 50
     ? 'text-emerald-500'
@@ -48,18 +51,18 @@ export function AnalyticsMetricsBar({
           {hours}h {mins}m
         </div>
         <span className="text-[11px] font-semibold text-[#0052FF] flex items-center gap-0.5 mt-1">
-          <ArrowUpRight className="w-3.5 h-3.5" /> {totalFocusHours}h all-time
+          <ArrowUpRight className="w-3.5 h-3.5" /> {weekFocusHours}h this week
         </span>
       </div>
 
       {/* Task Velocity */}
       <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl ios-card shadow-sm">
         <div className="flex items-center justify-between text-muted-foreground mb-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider">Task Velocity</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider">{taskLabel}</span>
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
         </div>
         <div className="text-2xl sm:text-3xl font-bold text-card-foreground font-mono">
-          {taskCompletionRate}%
+          {taskRate === null ? '—' : `${taskCompletionRate}%`}
         </div>
         <span className={`text-[11px] font-semibold flex items-center gap-0.5 mt-1 ${velocityColor}`}>
           <ArrowUpRight className="w-3.5 h-3.5" /> {velocityLabel}
@@ -73,10 +76,10 @@ export function AnalyticsMetricsBar({
           <Flame className="w-4 h-4 text-amber-500" />
         </div>
         <div className="text-2xl sm:text-3xl font-bold text-card-foreground font-mono">
-          {user.streak || 0} <span className="text-xs font-normal text-muted-foreground">days</span>
+          {streak} <span className="text-xs font-normal text-muted-foreground">{streak === 1 ? 'day' : 'days'}</span>
         </div>
         <span className="text-[11px] font-semibold text-amber-500 mt-1 block">
-          {user.streak > 0 ? '🔥 Unbroken consistency' : '⚡ Start your streak today'}
+          {streak > 0 ? '🔥 Days in a row with progress' : '⚡ Finish a task, habit or focus session'}
         </span>
       </div>
 

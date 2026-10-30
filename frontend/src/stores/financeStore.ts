@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { createEncryptedStorage } from "@/lib/encryptedStorage";
 import { TransactionItem } from "@/lib/types";
 import { financeApi } from "@/lib/api";
-import { soundFX } from "@/lib/utils";
+import { soundFX, serverIdFrom } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { useUserStore } from "./userStore";
 
@@ -38,6 +38,17 @@ export const useFinanceStore = create<FinanceStoreState>()(
             paymentMethod: tx.paymentMethod,
             date: tx.date,
             time: tx.time,
+          })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                transactions: state.transactions.map((x) => (x.id === newTx.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
           })
           .catch(() => {});
       },

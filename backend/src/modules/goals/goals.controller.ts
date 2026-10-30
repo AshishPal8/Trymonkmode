@@ -1,67 +1,70 @@
 import { Request, Response, NextFunction } from 'express';
 import {
   getGoalsService,
+  getGoalDetailService,
   createGoalService,
   updateGoalService,
   deleteGoalService,
+  createMilestoneService,
+  updateMilestoneService,
+  deleteMilestoneService,
 } from './goals.service.js';
 import { sendResponse } from '../../utils/apiResponse.js';
 import { HttpStatus } from '../../utils/httpStatus.js';
+import { BadRequestError } from '../../utils/errors.js';
 
-export async function getGoalsHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const timeframe = req.query.timeframe as string | undefined;
-    const goals = await getGoalsService(req.user!.userId, timeframe);
-    return sendResponse({
-      res,
-      statusCode: HttpStatus.OK,
-      message: 'Goals retrieved successfully.',
-      data: goals,
-    });
-  } catch (error) {
-    next(error);
-  }
+type Handler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;
+const wrap = (fn: (req: Request, res: Response) => Promise<unknown>): Handler =>
+  async (req, res, next) => {
+    try {
+      await fn(req, res);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+function idParam(req: Request, name = 'id') {
+  const id = Number(req.params[name]);
+  if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Invalid id.');
+  return id;
 }
 
-export async function createGoalHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const goal = await createGoalService(req.user!.userId, req.body);
-    return sendResponse({
-      res,
-      statusCode: HttpStatus.CREATED,
-      message: 'Goal created successfully.',
-      data: goal,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
+export const getGoalsHandler = wrap(async (req, res) => {
+  const data = await getGoalsService(req.user!.userId, req.query.timeframe as string | undefined);
+  sendResponse({ res, message: 'Goals retrieved successfully.', data });
+});
 
-export async function updateGoalHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const id = parseInt(req.params.id as string, 10);
-    const goal = await updateGoalService(req.user!.userId, id, req.body);
-    return sendResponse({
-      res,
-      statusCode: HttpStatus.OK,
-      message: 'Goal updated successfully.',
-      data: goal,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
+export const getGoalDetailHandler = wrap(async (req, res) => {
+  const data = await getGoalDetailService(req.user!.userId, idParam(req));
+  sendResponse({ res, message: 'Goal retrieved.', data });
+});
 
-export async function deleteGoalHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const id = parseInt(req.params.id as string, 10);
-    const result = await deleteGoalService(req.user!.userId, id);
-    return sendResponse({
-      res,
-      statusCode: HttpStatus.OK,
-      message: result.message,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
+export const createGoalHandler = wrap(async (req, res) => {
+  const data = await createGoalService(req.user!.userId, req.body);
+  sendResponse({ res, statusCode: HttpStatus.CREATED, message: 'Goal created successfully.', data });
+});
+
+export const updateGoalHandler = wrap(async (req, res) => {
+  const data = await updateGoalService(req.user!.userId, idParam(req), req.body);
+  sendResponse({ res, message: 'Goal updated successfully.', data });
+});
+
+export const deleteGoalHandler = wrap(async (req, res) => {
+  const data = await deleteGoalService(req.user!.userId, idParam(req));
+  sendResponse({ res, message: data.message });
+});
+
+export const createMilestoneHandler = wrap(async (req, res) => {
+  const data = await createMilestoneService(req.user!.userId, idParam(req), req.body);
+  sendResponse({ res, statusCode: HttpStatus.CREATED, message: 'Milestone added.', data });
+});
+
+export const updateMilestoneHandler = wrap(async (req, res) => {
+  const data = await updateMilestoneService(req.user!.userId, idParam(req, 'milestoneId'), req.body);
+  sendResponse({ res, message: 'Milestone updated.', data });
+});
+
+export const deleteMilestoneHandler = wrap(async (req, res) => {
+  const data = await deleteMilestoneService(req.user!.userId, idParam(req, 'milestoneId'));
+  sendResponse({ res, message: data.message });
+});

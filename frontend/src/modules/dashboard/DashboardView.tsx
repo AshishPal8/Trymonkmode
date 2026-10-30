@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '@/lib/store';
 import { getTodayDateString } from '@/lib/utils';
 import { ModuleContainer } from '@/components/layout/ModuleContainer';
@@ -27,15 +27,37 @@ export function DashboardView() {
     todayFocusMinutes,
     analyticsData,
     setActiveModule,
-    openQuickAdd
+    openQuickAdd,
+    fetchAnalytics,
   } = useApp();
+
+  // Refresh the numbers every time the dashboard opens (data loads are cached).
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const todayStr = getTodayDateString();
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
 
-  const todayPendingTasks = tasks.filter(t => !t.completed && (t.dueDate === todayStr || t.dueDate <= todayStr));
+  // Due today or overdue, still open.
+  const todayPendingTasks = tasks.filter(t => !t.completed && t.dueDate <= todayStr);
   const completedTasks = tasks.filter(t => t.completed);
-  const activeFocusTask = todayPendingTasks[0] || tasks[0];
+  // Today's tasks that are done (due today and ticked).
+  const todayDoneCount = tasks.filter(t => t.completed && t.dueDate === todayStr).length;
+  const todayTotal = todayDoneCount + todayPendingTasks.length;
+  const todayTaskRate = todayTotal > 0 ? Math.round((todayDoneCount / todayTotal) * 100) : null;
+
+  // Hero card: the most important open task (P1 first, then earliest due).
+  // It used to fall back to any task, even one already completed.
+  const priorityRank: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3 };
+  const byImportance = (a: typeof tasks[number], b: typeof tasks[number]) =>
+    (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9) || a.dueDate.localeCompare(b.dueDate);
+  const activeFocusTask =
+    [...todayPendingTasks].sort(byImportance)[0] ||
+    tasks.filter(t => !t.completed).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+
+  // Streak from real activity (the profile value was never updated before).
+  const streak = analyticsData?.streak ?? user.streak ?? 0;
 
   const [showToast, setShowToast] = useState(false);
   const [lastToggledId, setLastToggledId] = useState<string | null>(null);
@@ -60,7 +82,7 @@ export function DashboardView() {
   const habitRate = analyticsData?.habitCompletionRate ?? 0;
   const flowStateTier = analyticsData?.consistencyScorecard?.flowStateTier ?? (user.streak >= 3 ? 'Top 15%' : 'Building Flow');
   const taskCompletionRate = analyticsData?.taskCompletionRate ?? 0;
-  const totalFocusHours = String(analyticsData?.totalFocusHours ?? 0);
+  const weekFocusHours = String(analyticsData?.totalFocusHours ?? 0);
 
   return (
     <ModuleContainer>
@@ -78,9 +100,12 @@ export function DashboardView() {
           {/* Key Metrics Strip */}
           <AnalyticsMetricsBar
             user={user}
-            totalFocusHours={totalFocusHours}
+            streak={streak}
+            weekFocusHours={weekFocusHours}
             todayFocusMinutes={todayFocusMinutes}
-            taskCompletionRate={taskCompletionRate}
+            taskRate={todayTaskRate}
+            taskLabel="Today's tasks"
+            taskDetail={todayTotal > 0 ? `${todayDoneCount} of ${todayTotal} done` : 'Nothing due today'}
           />
 
           {/* Daily Harmony Score, Stoic Quote & Micro-Quests */}
@@ -93,13 +118,13 @@ export function DashboardView() {
           />
 
           {/* Hero Featured Task Card */}
-          {activeFocusTask && (
-            <HeroFocusTask
-              task={activeFocusTask}
-              onMarkDone={handleMarkDone}
-              onEdit={openQuickAdd}
-            />
-          )}
+          <HeroFocusTask
+            task={activeFocusTask}
+            isOverdue={!!activeFocusTask && activeFocusTask.dueDate < todayStr}
+            isUpcoming={!!activeFocusTask && activeFocusTask.dueDate > todayStr}
+            onMarkDone={handleMarkDone}
+            onEdit={openQuickAdd}
+          />
 
           {/* Categories & Hubs */}
           <CategoryHubsGrid
@@ -129,8 +154,12 @@ export function DashboardView() {
           {/* Core Telemetry Metrics Bar */}
           <AnalyticsMetricsBar
             user={user}
-            totalFocusHours={totalFocusHours}
-            taskCompletionRate={taskCompletionRate}
+            streak={streak}
+            weekFocusHours={weekFocusHours}
+            todayFocusMinutes={todayFocusMinutes}
+            taskRate={taskCompletionRate}
+            taskLabel="All tasks done"
+            taskDetail={`${analyticsData?.completedTasks ?? 0} of ${analyticsData?.totalTasks ?? 0}`}
           />
 
           {/* 7-Day Velocity Chart */}

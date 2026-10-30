@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { createEncryptedStorage } from "@/lib/encryptedStorage";
 import { BookmarkItem } from "@/lib/types";
 import { bookmarksApi } from "@/lib/api";
-import { getTodayDateString } from "@/lib/utils";
+import { getTodayDateString, serverIdFrom } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { useUserStore } from "./userStore";
 
@@ -41,6 +41,17 @@ export const useBookmarksStore = create<BookmarksStoreState>()(
             description: bm.notes,
             tags: bm.tags,
             isPinned: bm.isFavorite,
+          })
+          // Swap the temporary local id for the real one, so edits, toggles
+          // and deletes right after creating reach the right row.
+          .then((res) => {
+            const sid = serverIdFrom(res);
+            if (sid) {
+              set((state) => ({
+                bookmarks: state.bookmarks.map((x) => (x.id === newBm.id ? { ...x, id: sid } : x)),
+              }));
+            }
+            return res;
           })
           .catch(() => {});
       },
