@@ -1,4 +1,4 @@
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, and, gt, desc, isNull, lt, or } from "drizzle-orm";
 import crypto from "crypto";
 import { db } from "../../config/db.js";
 import {
@@ -8,6 +8,7 @@ import {
   userSettings,
   userPlans,
   userFavorites,
+  authLoginCodes,
 } from "../../db/schema.js";
 import { generateOtp, hashOtp, verifyOtpHash } from "../../utils/otp.js";
 import {
@@ -100,6 +101,7 @@ export async function getFullUserProfile(userId: number) {
     notifyTaskReminders: settings.notifyTaskReminders,
     notifyEventReminders: settings.notifyEventReminders,
     notifyHabitReminders: settings.notifyHabitReminders,
+    restDays: Array.isArray(settings.restDays) ? settings.restDays : [],
     planTier: plan.planTier,
     planStatus: plan.planStatus,
     planExpiresAt: plan.planExpiresAt,
@@ -143,6 +145,28 @@ export async function exchangeGoogleCode(code: string): Promise<string> {
   return data.access_token;
 }
 
+/**
+ * For native (app) sign-in: checks the Google access token was issued to one of
+ * OUR OAuth clients, not some other app, then returns the verified profile.
+ */
+export async function verifyNativeGoogleToken(accessToken: string): Promise<GoogleProfile> {
+  const res = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+  );
+  if (!res.ok) throw new UnauthorizedError("Invalid Google token.");
+  const info = (await res.json()) as { aud?: string; azp?: string };
+
+  const allowed = new Set(
+    [env.GOOGLE_CLIENT_ID, ...env.GOOGLE_NATIVE_CLIENT_IDS.split(",")]
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+  if (!allowed.has(info.aud || "") && !allowed.has(info.azp || "")) {
+    throw new UnauthorizedError("This Google token wasn't issued for Try Monk Mode.");
+  }
+  return fetchGoogleProfile(accessToken);
+}
+
 export async function fetchGoogleProfile(
   accessToken: string,
 ): Promise<GoogleProfile> {
@@ -166,6 +190,9 @@ export async function fetchGoogleProfile(
 
   if (!profile.email) {
     throw new BadRequestError("Google profile did not contain a valid email.");
+  }
+  if ((profile as { verified_email?: boolean }).verified_email === false) {
+    throw new UnauthorizedError("Your Google email isn't verified.");
   }
 
   return {
@@ -556,4 +583,67 @@ export async function getMeService(userId: number) {
     throw new NotFoundError("User not found.");
   }
   return profile;
+}
+
+// ─── One-time login codes (Google web sign-in) ───────────────────────────────
+
+const LOGIN_CODE_TTL_MS = 2 * 60 * 1000;
+const hashCode = (code: string) => crypto.createHash("sha256").update(code).digest("hex");
+
+/** Makes a single-use code for a session that was just created. */
+export async function createLoginCode(refreshToken: string): Promise<string> {
+  const { userId, tokenId } = verifyRefreshToken(refreshToken);
+  const code = crypto.randomBytes(32).toString("base64url");
+  await db.insert(authLoginCodes).values({
+    codeHash: hashCode(code),
+    userId,
+    sessionId: tokenId,
+    expiresAt: new Date(Date.now() + LOGIN_CODE_TTL_MS),
+  });
+  return code;
+}
+
+/** Swaps a login code for tokens. Each code works once, within 2 minutes. */
+export async function redeemLoginCode(code: string) {
+  const [row] = await db
+    .update(authLoginCodes)
+    .set({ usedAt: new Date() })
+    .where(
+      and(
+        eq(authLoginCodes.codeHash, hashCode(code)),
+        isNull(authLoginCodes.usedAt),
+        gt(authLoginCodes.expiresAt, new Date()),
+      ),
+    )
+    .returning();
+  if (!row) throw new UnauthorizedError("This sign-in link has expired. Please sign in again.");
+
+  const [session] = await db
+    .select()
+    .from(refreshTokens)
+    .where(and(eq(refreshTokens.id, row.sessionId), eq(refreshTokens.isRevoked, false)))
+    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.id, row.userId)).limit(1);
+  if (!session || !user) throw new UnauthorizedError("Session not found. Please sign in again.");
+
+  const profile = await getFullUserProfile(user.id);
+  return {
+    user: profile,
+    accessToken: generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      planTier: profile?.planTier || "free",
+    }),
+    refreshToken: generateRefreshToken({ userId: user.id, email: user.email, tokenId: session.id }),
+    tokenExpiresIn: "1h",
+    refreshTokenExpiresIn: "30d",
+  };
+}
+
+/** Removes used or expired login codes (nightly cleanup). */
+export async function purgeLoginCodes() {
+  await db
+    .delete(authLoginCodes)
+    .where(or(lt(authLoginCodes.expiresAt, new Date()), gt(authLoginCodes.usedAt, new Date(0))));
 }

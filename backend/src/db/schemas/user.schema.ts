@@ -6,7 +6,8 @@ import {
   integer,
   boolean,
   timestamp,
-  index
+  index,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
@@ -41,6 +42,8 @@ export const userSettings = pgTable('user_settings', {
   notifyTaskReminders: boolean('notify_task_reminders').notNull().default(true),
   notifyEventReminders: boolean('notify_event_reminders').notNull().default(true),
   notifyHabitReminders: boolean('notify_habit_reminders').notNull().default(true),
+  // Planned rest days (0 = Sunday ... 6 = Saturday). Missing one of these doesn't break the streak.
+  restDays: jsonb('rest_days').notNull().default([]),
   focusDuration: integer('focus_duration').notNull().default(25),
   shortBreakDuration: integer('short_break_duration').notNull().default(5),
   longBreakDuration: integer('long_break_duration').notNull().default(15),
@@ -102,3 +105,15 @@ export const refreshTokens = pgTable('refresh_tokens', {
   index('refresh_tokens_user_id_idx').on(table.userId),
   index('refresh_tokens_hash_idx').on(table.tokenHash)
 ]);
+// One-time codes handed to the browser after Google sign-in. The browser swaps
+// the code for a session (POST /auth/google/exchange), so tokens never appear
+// in a URL. Codes expire after 2 minutes and work once.
+export const authLoginCodes = pgTable('auth_login_codes', {
+  id: serial('id').primaryKey(),
+  codeHash: varchar('code_hash', { length: 128 }).notNull().unique(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: integer('session_id').notNull().references(() => refreshTokens.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+});

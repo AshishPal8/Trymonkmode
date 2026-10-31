@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { uploadImageHandler } from "./upload.controller.js";
 import { authenticate } from "../../middlewares/auth.middleware.js";
+import { uploadLimiter } from "../../middlewares/rateLimit.middleware.js";
 
 const router = Router();
 
@@ -21,6 +22,6 @@ const upload = multer({
 });
 
 // Protected Upload Endpoint
-router.post("/", authenticate, upload.single("file"), uploadImageHandler);
+router.post("/", authenticate, uploadLimiter, upload.single("file"), uploadImageHandler);
 
 export default router;

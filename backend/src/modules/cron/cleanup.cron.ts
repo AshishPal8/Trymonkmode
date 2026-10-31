@@ -4,6 +4,7 @@ import { db } from "../../config/db.js";
 import { notificationLogs, otps, refreshTokens } from "../../db/schema.js";
 import { isFlagEnabled } from "../settings/settings.service.js";
 import { purgeOldScheduledNotifications } from "./reminders.cron.js";
+import { purgeLoginCodes } from "../auth/auth.service.js";
 
 let cleanupTask: ScheduledTask | null = null;
 
@@ -32,6 +33,8 @@ async function processDailyCleanup() {
     await db.delete(otps).where(lt(otps.expiresAt, oneDayAgo));
 
     await purgeOldScheduledNotifications(14);
+
+    await purgeLoginCodes();
 
     await db
       .delete(refreshTokens)

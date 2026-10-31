@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { auditAdmin } from "../../middlewares/audit.middleware.js";
 import {
   getAppPagesHandler,
   getAllAppPagesAdminHandler,
@@ -26,6 +27,7 @@ router.post(
   authenticate,
   authorizeRoles("superadmin", "admin"),
   validate({ body: createAppPageSchema }),
+  auditAdmin("page.create"),
   createAppPageHandler,
 );
 router.patch(
@@ -33,12 +35,14 @@ router.patch(
   authenticate,
   authorizeRoles("superadmin", "admin"),
   validate({ body: updateAppPageSchema }),
+  auditAdmin("page.update"),
   updateAppPageHandler,
 );
 router.post(
   "/:id/toggle",
   authenticate,
   authorizeRoles("superadmin", "admin"),
+  auditAdmin("page.toggle"),
   toggleAppPageHandler,
 );
 

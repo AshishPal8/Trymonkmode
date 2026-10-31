@@ -26,6 +26,8 @@ export const tasks = pgTable('tasks', {
   tags: jsonb('tags').notNull().default([]),
   subtasks: jsonb('subtasks').notNull().default([]),
   completed: boolean('completed').notNull().default(false),
+  // When it was ticked off (used for streaks; editing a done task must not count as activity)
+  completedAt: timestamp('completed_at', { withTimezone: true }),
   reminderSent: boolean('reminder_sent').notNull().default(false),
   quadrant: varchar('quadrant', { length: 50 }).notNull().default('notUrgent-important'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

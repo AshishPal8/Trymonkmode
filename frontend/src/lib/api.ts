@@ -20,7 +20,12 @@ api.interceptors.request.use(
       const token =
         localStorage.getItem("trymonk_access_token") ||
         localStorage.getItem("aura_access_token");
-      if (token && token !== "undefined" && config.headers && !config.headers.Authorization) {
+      if (
+        token &&
+        token !== "undefined" &&
+        config.headers &&
+        !config.headers.Authorization
+      ) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       try {
@@ -145,6 +150,8 @@ export const authApi = {
   ) => api.post("/auth/verify-otp", { email, otp, name, type }),
   refreshToken: (refreshToken?: string) =>
     api.post("/auth/refresh-token", refreshToken ? { refreshToken } : {}),
+  exchangeGoogleCode: (code: string) =>
+    api.post("/auth/google/exchange", { code }),
   getMe: () => api.get("/auth/me"),
   logout: (refreshToken?: string) =>
     api.post("/auth/logout", refreshToken ? { refreshToken } : {}),
@@ -209,13 +216,21 @@ export const goalsApi = {
   getGoal: (id: number) => api.get(`/goals/${id}`),
   updateGoal: (id: number, data: any) => api.patch(`/goals/${id}`, data),
   deleteGoal: (id: number) => api.delete(`/goals/${id}`),
-  createMilestone: (goalId: number, data: { title: string; dueDate?: string | null }) =>
-    api.post(`/goals/${goalId}/milestones`, data),
+  createMilestone: (
+    goalId: number,
+    data: { title: string; dueDate?: string | null },
+  ) => api.post(`/goals/${goalId}/milestones`, data),
   updateMilestone: (
     milestoneId: number,
-    data: { title?: string; dueDate?: string | null; completed?: boolean; orderIndex?: number },
+    data: {
+      title?: string;
+      dueDate?: string | null;
+      completed?: boolean;
+      orderIndex?: number;
+    },
   ) => api.patch(`/goals/milestones/${milestoneId}`, data),
-  deleteMilestone: (milestoneId: number) => api.delete(`/goals/milestones/${milestoneId}`),
+  deleteMilestone: (milestoneId: number) =>
+    api.delete(`/goals/milestones/${milestoneId}`),
 };
 
 export const notesApi = {
@@ -260,6 +275,11 @@ export const usersApi = {
 
 export const analyticsApi = {
   getAnalytics: () => api.get("/analytics"),
+};
+
+export const streakApi = {
+  get: () => api.get("/streak"),
+  repair: () => api.post("/streak/repair"),
 };
 
 export const blogsApi = {

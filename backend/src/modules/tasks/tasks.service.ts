@@ -52,6 +52,7 @@ export async function createTaskService(
       tags: input.tags,
       subtasks: input.subtasks,
       completed: input.completed,
+      completedAt: input.completed ? new Date() : null,
       quadrant: input.quadrant,
     })
     .returning();
@@ -82,6 +83,10 @@ export async function updateTaskService(
 
   if (input.dueDate !== undefined || input.dueTime !== undefined) {
     updateData.reminderSent = false;
+  }
+
+  if (input.completed !== undefined) {
+    updateData.completedAt = input.completed ? new Date() : null;
   }
 
   if (input.goalId !== undefined || input.milestoneId !== undefined) {
@@ -136,6 +141,7 @@ export async function toggleTaskService(userId: number, taskId: number) {
     .update(tasks)
     .set({
       completed: nextCompleted,
+      completedAt: nextCompleted ? new Date() : null,
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId))

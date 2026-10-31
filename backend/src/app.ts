@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import { requestLogger } from "./middlewares/logger.middleware.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { apiLimiter, authLimiter } from "./middlewares/rateLimit.middleware.js";
 import { NotFoundError } from "./utils/errors.js";
 import { sendResponse } from "./utils/apiResponse.js";
 import { HttpStatus } from "./utils/httpStatus.js";
@@ -30,34 +32,31 @@ import uploadRoutes from "./modules/upload/upload.route.js";
 import { notificationRoutes } from "./modules/notifications/notifications.route.js";
 import { settingsRoutes } from "./modules/settings/settings.route.js";
 import { focusRoutes } from "./modules/focus/focus.route.js";
+import { streakRoutes } from "./modules/streak/streak.route.js";
 
 export const app = express();
 
 // Required for GCP Cloud Run / reverse proxies so secure cookies work
 app.set("trust proxy", 1);
 
+// Only our own frontend (FRONTEND_URL) may call the API from a browser.
+const FRONTEND_ORIGIN = new URL(env.FRONTEND_URL).origin;
+
+app.use(
+  helmet({
+    // JSON API: no HTML to protect with CSP, and images may be loaded cross-site.
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+
 app.use(
   cors({
     origin: (origin, callback) => {
+      // No Origin header = not a browser cross-site request (curl, server-to-server,
+      // same-origin via the Next.js proxy). CORS doesn't apply there.
       if (!origin) return callback(null, true);
-
-      const allowed = [
-        env.FRONTEND_URL,
-        "https://trymonkmode.ashishpal.dev",
-        "https://trymonkmode.in",
-        "https://www.trymonkmode.in",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-      ];
-
-      if (
-        allowed.includes(origin) ||
-        origin.endsWith(".vercel.app") ||
-        origin.includes("trymonkmode")
-      ) {
-        return callback(null, origin);
-      }
-      return callback(null, origin);
+      return callback(null, origin === FRONTEND_ORIGIN ? origin : false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -74,7 +73,7 @@ app.use(
 );
 
 app.use(cookieParser());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
@@ -91,9 +90,11 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.get("/api/google", googleLogin);
-app.get("/api/google/callback", googleCallback);
-app.post("/api/google/native", googleNativeAuthHandler);
+app.use("/api", apiLimiter);
+
+app.get("/api/google", authLimiter, googleLogin);
+app.get("/api/google/callback", authLimiter, googleCallback);
+app.post("/api/google/native", authLimiter, googleNativeAuthHandler);
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
@@ -112,6 +113,7 @@ app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/settings", settingsRoutes);
 app.use("/api/v1/focus", focusRoutes);
+app.use("/api/v1/streak", streakRoutes);
 
 app.use((_req, _res, next) => {
   next(new NotFoundError("The requested endpoint or resource does not exist."));

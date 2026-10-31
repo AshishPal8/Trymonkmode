@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { ToastContainer } from "@/components/ui/toast";
-import { pagesApi } from "@/lib/api";
+import { ToastContainer, toast } from "@/components/ui/toast";
+import { pagesApi, authApi } from "@/lib/api";
 import { getTodayDateString, triggerCelebrationConfetti } from "@/lib/utils";
 import { DailyQuest } from "@/lib/types";
 
@@ -28,7 +28,10 @@ import { useGoalsStore } from "./goalsStore";
 import { useCalendarStore } from "./calendarStore";
 import { useFinanceStore } from "./financeStore";
 import { useBookmarksStore } from "./bookmarksStore";
-import { useFocusStore, todayFocusMinutes as todayFocusMinutesOf } from "./focusStore";
+import {
+  useFocusStore,
+  todayFocusMinutes as todayFocusMinutesOf,
+} from "./focusStore";
 import { useAnalyticsStore } from "./analyticsStore";
 import { useUIStore } from "./uiStore";
 
@@ -111,114 +114,129 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     userStore.setTheme(userStore.theme, false);
 
-    // Handle Google OAuth Callback params in URL
+    // After Google sign-in the backend sends us back with a one-time `code`.
+    // Swap it for tokens with a POST (tokens are never put in the URL).
+    let signIn: Promise<unknown> = Promise.resolve();
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const googleAuth = urlParams.get("google_auth");
-      const token = urlParams.get("token");
-      const refresh = urlParams.get("refresh");
+      const code = urlParams.get("code");
       const authError = urlParams.get("error");
 
-      if (token) {
-        localStorage.setItem("trymonk_access_token", token);
-        localStorage.setItem("trymonk_token", token);
-        // The refresh token must be kept too. The Google callback runs on the
-        // backend's own domain, so its cookies never reach trymonkmode.in;
-        // without this the session died when the 1-hour access token expired.
-        if (refresh && refresh !== "undefined" && refresh.length > 20) {
-          localStorage.setItem("trymonk_refresh_token", refresh);
-        }
-
-        // If from mobile app, bounce to custom scheme to close browser and login into app
-        const isMobileRedirect =
-          urlParams.get("platform") === "mobile" ||
-          urlParams.get("redirect")?.startsWith("mobile://") ||
-          (typeof navigator !== "undefined" &&
-            /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-
-        if (isMobileRedirect) {
-          try {
-            window.location.href = `mobile://auth-callback?token=${encodeURIComponent(
-              token,
-            )}&refresh=${encodeURIComponent(refresh || "")}`;
-          } catch {}
-        }
+      if (googleAuth || code || authError) {
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
       }
 
-      if (googleAuth === "success" || token) {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
+      if (googleAuth === "success" && code) {
+        signIn = authApi
+          .exchangeGoogleCode(code)
+          .then((res) => {
+            const data = res?.data?.data;
+            if (data?.accessToken)
+              localStorage.setItem("trymonk_access_token", data.accessToken);
+            if (data?.refreshToken)
+              localStorage.setItem("trymonk_refresh_token", data.refreshToken);
+            triggerCelebrationConfetti();
+          })
+          .catch(() => {
+            toast.error("Sign-in link expired. Please sign in again.");
+          });
+      } else if (googleAuth === "success" && urlParams.get("token")) {
+        const token = urlParams.get("token")!;
+        const refresh = urlParams.get("refresh");
+        localStorage.setItem("trymonk_access_token", token);
+        if (refresh && refresh.length > 20)
+          localStorage.setItem("trymonk_refresh_token", refresh);
         triggerCelebrationConfetti();
       } else if (authError) {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
+        toast.error("Google sign-in didn't go through. Please try again.");
       }
     }
 
-    // Unconditionally sync auth session on mount/refresh/tab open!
-    userStore.syncWithBackend().then(() => {
-      const isAuth = useUserStore.getState().isAuthenticated;
-      if (isAuth) {
-        pagesApi
-          .getPages()
-          .then((res) => {
-            if (
-              res?.data?.data &&
-              Array.isArray(res.data.data) &&
-              res.data.data.length > 0
-            ) {
-              uiStore.setPages(res.data.data);
-            }
-          })
-          .catch(() => {});
+    // Sync the session on every load (after the sign-in swap, if any).
+    signIn
+      .then(() => userStore.syncWithBackend())
+      .then(() => {
+        const isAuth = useUserStore.getState().isAuthenticated;
+        if (isAuth) {
+          pagesApi
+            .getPages()
+            .then((res) => {
+              if (
+                res?.data?.data &&
+                Array.isArray(res.data.data) &&
+                res.data.data.length > 0
+              ) {
+                uiStore.setPages(res.data.data);
+              }
+            })
+            .catch(() => {});
 
-        uiStore.loadModuleData(useUIStore.getState().activeModule);
-      }
-    });
+          uiStore.loadModuleData(useUIStore.getState().activeModule);
+        }
+      });
   }, []);
 
   // Global persistent background timer engine (immune to tab switching / route navigation)
   useEffect(() => {
-    const DEFAULT_TITLE = 'TryMonkMode | The Operating System for Deep Work & Daily Habits';
+    const DEFAULT_TITLE =
+      "TryMonkMode | The Operating System for Deep Work & Daily Habits";
 
     const interval = setInterval(() => {
       const focusState = useFocusStore.getState();
 
       if (focusState.isRunning && focusState.targetEndTime) {
         const now = Date.now();
-        const diff = Math.max(0, Math.ceil((focusState.targetEndTime - now) / 1000));
+        const diff = Math.max(
+          0,
+          Math.ceil((focusState.targetEndTime - now) / 1000),
+        );
 
         const mins = Math.floor(diff / 60);
         const secs = diff % 60;
-        const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
-        const emoji = focusState.mode === 'pomodoro' ? '🎯' : focusState.mode === 'shortBreak' ? '☕' : '🌴';
-        const label = focusState.mode === 'pomodoro' ? 'Focus' : focusState.mode === 'shortBreak' ? 'Short Break' : 'Long Break';
+        const emoji =
+          focusState.mode === "pomodoro"
+            ? "🎯"
+            : focusState.mode === "shortBreak"
+              ? "☕"
+              : "🌴";
+        const label =
+          focusState.mode === "pomodoro"
+            ? "Focus"
+            : focusState.mode === "shortBreak"
+              ? "Short Break"
+              : "Long Break";
 
-        if (typeof document !== 'undefined') {
+        if (typeof document !== "undefined") {
           document.title = `(${timeStr}) ${emoji} ${label} • TryMonkMode`;
         }
 
         if (diff <= 0) {
           focusState.completeTimerSession();
         }
-      } else if (focusState.isStopwatchRunning && focusState.stopwatchStartTime) {
+      } else if (
+        focusState.isStopwatchRunning &&
+        focusState.stopwatchStartTime
+      ) {
         const elapsed = Date.now() - focusState.stopwatchStartTime;
         const totalSecs = Math.floor(elapsed / 1000);
         const mins = Math.floor(totalSecs / 60);
         const secs = totalSecs % 60;
-        const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
-        if (typeof document !== 'undefined') {
+        if (typeof document !== "undefined") {
           document.title = `(${timeStr}) ⏱️ Stopwatch • TryMonkMode`;
         }
-      } else if (typeof document !== 'undefined' && document.title.includes(' • TryMonkMode')) {
+      } else if (
+        typeof document !== "undefined" &&
+        document.title.includes(" • TryMonkMode")
+      ) {
         // Timer stopped or paused: drop the countdown from the tab title.
         document.title = DEFAULT_TITLE;
       }

@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { useApp } from '@/lib/store';
-import { getTodayDateString } from '@/lib/utils';
-import { ModuleContainer } from '@/components/layout/ModuleContainer';
-import { RotateCcw, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { useApp } from "@/lib/store";
+import { getTodayDateString } from "@/lib/utils";
+import { ModuleContainer } from "@/components/layout/ModuleContainer";
+import { RotateCcw, Sparkles } from "lucide-react";
 
 // Modular Dashboard Sub-Components
-import { DashboardHeader } from './components/DashboardHeader';
-import { HeroFocusTask } from './components/HeroFocusTask';
-import { CategoryHubsGrid } from './components/CategoryHubsGrid';
-import { AnalyticsMetricsBar } from './components/AnalyticsMetricsBar';
-import { PeakPerformanceCard } from './components/PeakPerformanceCard';
-import { WeeklyVelocityChart } from './components/WeeklyVelocityChart';
-import { HabitsAndCalendarWidget } from './components/HabitsAndCalendarWidget';
-import { DashboardEngagementWidgets } from './components/DashboardEngagementWidgets';
+import { DashboardHeader } from "./components/DashboardHeader";
+import { HeroFocusTask } from "./components/HeroFocusTask";
+import { CategoryHubsGrid } from "./components/CategoryHubsGrid";
+import { AnalyticsMetricsBar } from "./components/AnalyticsMetricsBar";
+import { PeakPerformanceCard } from "./components/PeakPerformanceCard";
+import { WeeklyVelocityChart } from "./components/WeeklyVelocityChart";
+import { HabitsAndCalendarWidget } from "./components/HabitsAndCalendarWidget";
+import { DashboardEngagementWidgets } from "./components/DashboardEngagementWidgets";
 
 export function DashboardView() {
   const {
@@ -37,24 +37,34 @@ export function DashboardView() {
   }, [fetchAnalytics]);
 
   const todayStr = getTodayDateString();
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<"overview" | "analytics">(
+    "overview",
+  );
 
   // Due today or overdue, still open.
-  const todayPendingTasks = tasks.filter(t => !t.completed && t.dueDate <= todayStr);
-  const completedTasks = tasks.filter(t => t.completed);
+  const todayPendingTasks = tasks.filter(
+    (t) => !t.completed && t.dueDate <= todayStr,
+  );
+  const completedTasks = tasks.filter((t) => t.completed);
   // Today's tasks that are done (due today and ticked).
-  const todayDoneCount = tasks.filter(t => t.completed && t.dueDate === todayStr).length;
+  const todayDoneCount = tasks.filter(
+    (t) => t.completed && t.dueDate === todayStr,
+  ).length;
   const todayTotal = todayDoneCount + todayPendingTasks.length;
-  const todayTaskRate = todayTotal > 0 ? Math.round((todayDoneCount / todayTotal) * 100) : null;
+  const todayTaskRate =
+    todayTotal > 0 ? Math.round((todayDoneCount / todayTotal) * 100) : null;
 
   // Hero card: the most important open task (P1 first, then earliest due).
   // It used to fall back to any task, even one already completed.
   const priorityRank: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3 };
-  const byImportance = (a: typeof tasks[number], b: typeof tasks[number]) =>
-    (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9) || a.dueDate.localeCompare(b.dueDate);
+  const byImportance = (a: (typeof tasks)[number], b: (typeof tasks)[number]) =>
+    (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9) ||
+    a.dueDate.localeCompare(b.dueDate);
   const activeFocusTask =
     [...todayPendingTasks].sort(byImportance)[0] ||
-    tasks.filter(t => !t.completed).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+    tasks
+      .filter((t) => !t.completed)
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
 
   // Streak from real activity (the profile value was never updated before).
   const streak = analyticsData?.streak ?? user.streak ?? 0;
@@ -80,7 +90,9 @@ export function DashboardView() {
   const categoryDistribution = analyticsData?.categoryDistribution || [];
   const adherenceRate = analyticsData?.weeklyAdherenceRate ?? 0;
   const habitRate = analyticsData?.habitCompletionRate ?? 0;
-  const flowStateTier = analyticsData?.consistencyScorecard?.flowStateTier ?? (user.streak >= 3 ? 'Top 15%' : 'Building Flow');
+  const flowStateTier =
+    analyticsData?.consistencyScorecard?.flowStateTier ??
+    (user.streak >= 3 ? "Top 15%" : "Building Flow");
   const taskCompletionRate = analyticsData?.taskCompletionRate ?? 0;
   const weekFocusHours = String(analyticsData?.totalFocusHours ?? 0);
 
@@ -91,11 +103,11 @@ export function DashboardView() {
         pendingTasksCount={todayPendingTasks.length}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onStartFocus={() => setActiveModule('pomodoro')}
+        onStartFocus={() => setActiveModule("pomodoro")}
       />
 
       {/* OVERVIEW TAB */}
-      {activeTab === 'overview' && (
+      {activeTab === "overview" && (
         <div className="space-y-4 sm:space-y-6 animate-fadeIn">
           {/* Key Metrics Strip */}
           <AnalyticsMetricsBar
@@ -105,7 +117,13 @@ export function DashboardView() {
             todayFocusMinutes={todayFocusMinutes}
             taskRate={todayTaskRate}
             taskLabel="Today's tasks"
-            taskDetail={todayTotal > 0 ? `${todayDoneCount} of ${todayTotal} done` : 'Nothing due today'}
+            taskDetail={
+              todayTotal > 0
+                ? `${todayDoneCount} of ${todayTotal} done`
+                : "Nothing due today"
+            }
+            streakStatus={analyticsData?.streakStatus}
+            onStreakChanged={fetchAnalytics}
           />
 
           {/* Daily Harmony Score, Stoic Quote & Micro-Quests */}
@@ -146,7 +164,7 @@ export function DashboardView() {
       )}
 
       {/* DEEP ANALYTICS TAB */}
-      {activeTab === 'analytics' && (
+      {activeTab === "analytics" && (
         <div className="space-y-4 sm:space-y-6 animate-fadeIn">
           {/* Peak Performance Highlight Banner */}
           <PeakPerformanceCard />
@@ -160,6 +178,8 @@ export function DashboardView() {
             taskRate={taskCompletionRate}
             taskLabel="All tasks done"
             taskDetail={`${analyticsData?.completedTasks ?? 0} of ${analyticsData?.totalTasks ?? 0}`}
+            streakStatus={analyticsData?.streakStatus}
+            onStreakChanged={fetchAnalytics}
           />
 
           {/* 7-Day Velocity Chart */}
@@ -169,22 +189,31 @@ export function DashboardView() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-5 sm:p-7 rounded-2xl sm:rounded-3xl ios-card space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-card-foreground">Focus Session Distribution</h3>
-                <span className="text-[11px] text-muted-foreground font-medium">By Category & Tags</span>
+                <h3 className="text-sm font-bold text-card-foreground">
+                  Focus Session Distribution
+                </h3>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  By Category & Tags
+                </span>
               </div>
 
               {categoryDistribution.length > 0 ? (
                 <div className="space-y-2 pt-1">
-                  {categoryDistribution.map(item => (
+                  {categoryDistribution.map((item) => (
                     <div key={item.tag} className="space-y-1">
                       <div className="flex justify-between text-xs font-semibold">
                         <span className="text-card-foreground">{item.tag}</span>
-                        <span className="text-muted-foreground font-mono">{item.pct}%</span>
+                        <span className="text-muted-foreground font-mono">
+                          {item.pct}%
+                        </span>
                       </div>
                       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${item.pct}%`, backgroundColor: item.color }}
+                          style={{
+                            width: `${item.pct}%`,
+                            backgroundColor: item.color,
+                          }}
                         />
                       </div>
                     </div>
@@ -194,14 +223,19 @@ export function DashboardView() {
                 <div className="py-6 text-center text-xs text-muted-foreground bg-muted/30 rounded-2xl border border-dashed border-border/80">
                   <Sparkles className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground opacity-50" />
                   <p>No focus categories recorded yet.</p>
-                  <p className="text-[10px] text-muted-foreground/80 mt-0.5">Tag tasks or complete focus sessions to see your distribution.</p>
+                  <p className="text-[10px] text-muted-foreground/80 mt-0.5">
+                    Tag tasks or complete focus sessions to see your
+                    distribution.
+                  </p>
                 </div>
               )}
             </div>
 
             <div className="p-5 sm:p-7 rounded-2xl sm:rounded-3xl ios-card space-y-3 shadow-sm flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-bold text-card-foreground">Consistency Scorecard</h3>
+                <h3 className="text-sm font-bold text-card-foreground">
+                  Consistency Scorecard
+                </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Real-time cognitive stamina rating across active weeks
                 </p>
@@ -209,21 +243,33 @@ export function DashboardView() {
 
               <div className="grid grid-cols-3 gap-3 text-center py-2">
                 <div className="p-3 rounded-2xl bg-muted/60 border border-border">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Adherence</span>
-                  <div className="text-xl font-bold font-mono text-emerald-500 mt-0.5">{adherenceRate}%</div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Adherence
+                  </span>
+                  <div className="text-xl font-bold font-mono text-emerald-500 mt-0.5">
+                    {adherenceRate}%
+                  </div>
                 </div>
                 <div className="p-3 rounded-2xl bg-muted/60 border border-border">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Habit Rate</span>
-                  <div className="text-xl font-bold font-mono text-[#0052FF] mt-0.5">{habitRate}%</div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Habit Rate
+                  </span>
+                  <div className="text-xl font-bold font-mono text-[#0052FF] mt-0.5">
+                    {habitRate}%
+                  </div>
                 </div>
                 <div className="p-3 rounded-2xl bg-muted/60 border border-border">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Flow State</span>
-                  <div className="text-xl font-bold font-mono text-amber-500 mt-0.5">{flowStateTier}</div>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Flow State
+                  </span>
+                  <div className="text-xl font-bold font-mono text-amber-500 mt-0.5">
+                    {flowStateTier}
+                  </div>
                 </div>
               </div>
 
               <button
-                onClick={() => setActiveModule('pomodoro')}
+                onClick={() => setActiveModule("pomodoro")}
                 className="w-full py-2.5 rounded-xl bg-[#0052FF] hover:bg-[#0043D6] text-white text-xs font-bold transition cursor-pointer text-center shadow-sm"
               >
                 Launch Deep Work Session (+50 XP)
@@ -237,7 +283,9 @@ export function DashboardView() {
       {showToast && (
         <div className="fixed bottom-20 right-4 sm:right-6 z-50 animate-bounce">
           <div className="ios-card bg-card/95 border border-border px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-3">
-            <span className="text-xs font-semibold text-foreground">Task marked as completed!</span>
+            <span className="text-xs font-semibold text-foreground">
+              Task marked as completed!
+            </span>
             <button
               onClick={handleUndo}
               className="text-xs font-bold text-[#0052FF] hover:underline flex items-center gap-1 cursor-pointer"

@@ -49,6 +49,9 @@ export async function updateProfileService(
     settingsUpdates.soundEffects = input.soundEffects;
   if (input.reminderLeadMinutes !== undefined)
     settingsUpdates.reminderLeadMinutes = input.reminderLeadMinutes;
+  if (input.restDays !== undefined) {
+    settingsUpdates.restDays = [...new Set(input.restDays)].sort();
+  }
   for (const key of [
     "notifyTaskReminders",
     "notifyEventReminders",

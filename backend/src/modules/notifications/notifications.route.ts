@@ -11,6 +11,8 @@ import {
   notificationStatsHandler
 } from './notifications.controller.js';
 import { authorizeRoles } from '../../middlewares/rbac.middleware.js';
+import { sendLimiter } from '../../middlewares/rateLimit.middleware.js';
+import { auditAdmin } from '../../middlewares/audit.middleware.js';
 import { authenticate } from '../../middlewares/auth.middleware.js';
 import { validate } from '../../middlewares/validate.js';
 import {
@@ -42,6 +44,7 @@ router.get('/device-tokens', getDeviceTokensHandler);
 
 router.post(
   '/test',
+  sendLimiter,
   validate({ body: sendTestNotificationSchema }),
   sendTestNotificationHandler
 );
@@ -58,7 +61,9 @@ router.get('/admin/stats', authorizeRoles('superadmin', 'admin'), notificationSt
 router.post(
   '/admin/broadcast',
   authorizeRoles('superadmin', 'admin'),
+  sendLimiter,
   validate({ body: broadcastSchema }),
+  auditAdmin('notification.broadcast'),
   broadcastHandler
 );
 

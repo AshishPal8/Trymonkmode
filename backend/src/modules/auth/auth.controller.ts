@@ -8,6 +8,9 @@ import {
   exchangeGoogleCode,
   fetchGoogleProfile,
   findOrCreateGoogleUser,
+  verifyNativeGoogleToken,
+  createLoginCode,
+  redeemLoginCode,
 } from "./auth.service.js";
 import { UnauthorizedError } from "../../utils/errors.js";
 import { sendResponse } from "../../utils/apiResponse.js";
@@ -42,43 +45,57 @@ export const googleLogin = (req: Request, res: Response): void => {
   );
 };
 
+type RedirectKind = { kind: "web"; url: string } | { kind: "app"; url: string };
+
+const APP_SCHEMES = new Set(["mobile:", "trymonkmode:", "exp:"]);
+function safeRedirect(target?: string): RedirectKind | null {
+  if (!target) return null;
+  let url: URL;
+  try {
+    url = new URL(target);
+  } catch {
+    return null;
+  }
+  if (APP_SCHEMES.has(url.protocol)) return { kind: "app", url: target };
+  if (url.origin === new URL(env.FRONTEND_URL).origin)
+    return { kind: "web", url: target };
+  return null;
+}
+
+function withParams(url: string, params: Record<string, string>) {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}${new URLSearchParams(params).toString()}`;
+}
+
+function parseState(state?: string): { redirect?: string; platform?: string } {
+  if (!state) return {};
+  try {
+    return JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
+  } catch {
+    return {};
+  }
+}
+
 export const googleCallback = async (
   req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ): Promise<void> => {
+  const { code, error, state } = req.query as {
+    code?: string;
+    error?: string;
+    state?: string;
+  };
+  const target = safeRedirect(parseState(state).redirect);
+  const fail = () => {
+    const base = target?.url || `${env.FRONTEND_URL}/`;
+    res.redirect(withParams(base, { error: "google_auth_failed" }));
+  };
+
   try {
-    const { code, error, state } = req.query as {
-      code?: string;
-      error?: string;
-      state?: string;
-    };
-
-    let stateObj: { redirect?: string; platform?: string } = {};
-    if (state) {
-      try {
-        stateObj = JSON.parse(Buffer.from(state, "base64").toString("utf-8"));
-      } catch (e) {
-        console.warn("Could not parse OAuth state:", e);
-      }
-    }
-
-    const redirectTarget = stateObj.redirect;
-
     if (error || !code) {
       console.warn("Google OAuth warning:", error || "No code query received");
-      if (
-        redirectTarget &&
-        (redirectTarget.startsWith("mobile://") ||
-          redirectTarget.startsWith("trymonkmode://") ||
-          redirectTarget.startsWith("exp://"))
-      ) {
-        const sep = redirectTarget.includes("?") ? "&" : "?";
-        res.redirect(`${redirectTarget}${sep}error=google_auth_failed`);
-        return;
-      }
-      res.redirect(`${env.FRONTEND_URL}/?error=google_auth_failed`);
-      return;
+      return fail();
     }
 
     const clientIp =
@@ -87,63 +104,60 @@ export const googleCallback = async (
       req.ip;
     const userAgent = req.headers["user-agent"] as string;
 
-    const accessToken = await exchangeGoogleCode(code);
-    const googleProfile = await fetchGoogleProfile(accessToken);
+    const googleAccessToken = await exchangeGoogleCode(code);
+    const googleProfile = await fetchGoogleProfile(googleAccessToken);
     const result = await findOrCreateGoogleUser(
       googleProfile,
       clientIp,
       userAgent,
     );
 
+    // Only useful when this callback is served from our own domain.
     setAuthCookies(res, result.accessToken, result.refreshToken);
 
-    // If explicit redirect target was passed (e.g. http://localhost:3000, mobile://, etc.)
-    if (redirectTarget) {
-      const isAllowedTarget =
-        redirectTarget.startsWith("http://localhost:") ||
-        redirectTarget.startsWith("http://127.0.0.1:") ||
-        redirectTarget.startsWith("https://trymonkmode.in") ||
-        redirectTarget.startsWith("https://www.trymonkmode.in") ||
-        redirectTarget.startsWith("mobile://") ||
-        redirectTarget.startsWith("trymonkmode://") ||
-        redirectTarget.startsWith("exp://");
-
-      if (isAllowedTarget) {
-        const sep = redirectTarget.includes("?") ? "&" : "?";
-        res.redirect(
-          `${redirectTarget}${sep}google_auth=success&token=${encodeURIComponent(
-            result.accessToken,
-          )}&refresh=${encodeURIComponent(result.refreshToken)}`,
-        );
-        return;
-      }
+    // Native app (custom URL scheme): the app reads the tokens from the link.
+    if (target?.kind === "app") {
+      res.redirect(
+        withParams(target.url, {
+          google_auth: "success",
+          token: result.accessToken,
+          refresh: result.refreshToken,
+        }),
+      );
+      return;
     }
 
+    const loginCode = await createLoginCode(result.refreshToken);
     res.redirect(
-      `${env.FRONTEND_URL}/?google_auth=success&token=${encodeURIComponent(
-        result.accessToken,
-      )}&refresh=${encodeURIComponent(result.refreshToken)}`,
+      withParams(target?.url || `${env.FRONTEND_URL}/`, {
+        google_auth: "success",
+        code: loginCode,
+      }),
     );
   } catch (err) {
     console.error("Google OAuth Callback Error:", err);
-    if (req.query.state) {
-      try {
-        const stateObj = JSON.parse(
-          Buffer.from(req.query.state as string, "base64").toString("utf-8"),
-        );
-        if (
-          stateObj.redirect &&
-          (stateObj.redirect.startsWith("mobile://") ||
-            stateObj.redirect.startsWith("trymonkmode://") ||
-            stateObj.redirect.startsWith("exp://"))
-        ) {
-          const sep = stateObj.redirect.includes("?") ? "&" : "?";
-          res.redirect(`${stateObj.redirect}${sep}error=google_auth_failed`);
-          return;
-        }
-      } catch {}
-    }
-    res.redirect(`${env.FRONTEND_URL}/?error=google_auth_failed`);
+    fail();
+  }
+};
+
+export const googleExchangeHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const code = String(req.body?.code || "");
+    if (code.length < 20) throw new UnauthorizedError("Missing sign-in code.");
+    const result = await redeemLoginCode(code);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+    sendResponse({
+      res,
+      statusCode: HttpStatus.OK,
+      message: "Signed in.",
+      data: result,
+    });
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -153,23 +167,11 @@ export const googleNativeAuthHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { accessToken, profile } = req.body as {
-      accessToken?: string;
-      profile?: { id: string; email: string; name?: string; picture?: string };
-    };
-
-    let googleProfile = profile;
-    if (!googleProfile && accessToken) {
-      googleProfile = await fetchGoogleProfile(accessToken);
+    const { accessToken } = req.body as { accessToken?: string };
+    if (!accessToken) {
+      throw new UnauthorizedError("A Google access token is required.");
     }
-
-    if (!googleProfile || !googleProfile.email) {
-      res.status(400).json({
-        statusCode: 400,
-        message: "Google profile or accessToken required.",
-      });
-      return;
-    }
+    const googleProfile = await verifyNativeGoogleToken(accessToken);
 
     const clientIp =
       (req.headers["x-forwarded-for"] as string) ||
@@ -256,9 +258,10 @@ export async function refreshTokenHandler(
   next: NextFunction,
 ) {
   try {
-    // Try the cookie first, then the token sent in the body (used when the
-    // cookie lives on another domain or is blocked). Skip junk like "undefined".
-    const candidates = [req.cookies?.refresh_token, req.body?.refreshToken].filter(
+    const candidates = [
+      req.cookies?.refresh_token,
+      req.body?.refreshToken,
+    ].filter(
       (t, i, arr): t is string =>
         typeof t === "string" && t.length > 20 && arr.indexOf(t) === i,
     );
@@ -268,13 +271,18 @@ export async function refreshTokenHandler(
       req.ip;
     const userAgent = req.headers["user-agent"] as string;
 
-    let result: Awaited<ReturnType<typeof rotateRefreshTokenService>> | null = null;
+    let result: Awaited<ReturnType<typeof rotateRefreshTokenService>> | null =
+      null;
     let lastError: unknown = new UnauthorizedError(
       "No refresh token provided. Please log in again.",
     );
     for (const candidate of candidates) {
       try {
-        result = await rotateRefreshTokenService(candidate, clientIp, userAgent);
+        result = await rotateRefreshTokenService(
+          candidate,
+          clientIp,
+          userAgent,
+        );
         break;
       } catch (err) {
         lastError = err;

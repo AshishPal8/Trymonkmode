@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { verifyAccessToken, UserTokenPayload } from "../utils/jwt.js";
 import { UnauthorizedError } from "../utils/errors.js";
 import { db } from "../config/db.js";
-import { users } from "../db/schema.js";
+import { users, userPlans } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 
 declare global {
@@ -54,11 +54,13 @@ export async function authenticate(
       }
     }
     if (!decoded) throw lastError;
-    const [userRecord] = await db
-      .select()
+    const [row] = await db
+      .select({ user: users, planTier: userPlans.planTier })
       .from(users)
+      .leftJoin(userPlans, eq(userPlans.userId, users.id))
       .where(eq(users.id, decoded.userId))
       .limit(1);
+    const userRecord = row?.user;
 
     if (!userRecord) {
       throw new UnauthorizedError(
@@ -70,7 +72,7 @@ export async function authenticate(
       userId: userRecord.id,
       email: userRecord.email,
       role: userRecord.role,
-      planTier: (decoded as any).planTier || "free",
+      planTier: row.planTier || "free",
       name: userRecord.name,
       avatar: userRecord.avatar || null,
       streak: userRecord.streak,

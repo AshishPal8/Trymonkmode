@@ -1,6 +1,13 @@
 import { eq, desc, and, gte } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { tasks, habits, users, userSettings, focusSessions } from "../../db/schema.js";
+import { getStreakStatusService } from "../streak/streak.service.js";
+import {
+  tasks,
+  habits,
+  users,
+  userSettings,
+  focusSessions,
+} from "../../db/schema.js";
 
 export interface DailyVelocity {
   day: string; // 'Mon', 'Tue', ...
@@ -35,6 +42,7 @@ export interface AnalyticsSummary {
   weeklyAdherenceRate: number;
   habitCompletionRate: number;
   streak: number;
+  streakStatus: Awaited<ReturnType<typeof getStreakStatusService>>;
   xp: number;
   level: number;
   xpToNextLevel: number;
@@ -61,30 +69,42 @@ export async function getAnalyticsService(
   userId: number,
 ): Promise<AnalyticsSummary> {
   // All independent, so run them together.
-  const [[user], [settings], userTasks, userHabits, recentFocus] = await Promise.all([
-    db.select().from(users).where(eq(users.id, userId)).limit(1),
-    db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1),
-    db.select().from(tasks).where(eq(tasks.userId, userId)).orderBy(desc(tasks.createdAt)),
-    db.select().from(habits).where(eq(habits.userId, userId)),
-    db
-      .select({
-        minutes: focusSessions.durationMinutes,
-        startedAt: focusSessions.startedAt,
-        endedAt: focusSessions.endedAt,
-      })
-      .from(focusSessions)
-      .where(
-        and(
-          eq(focusSessions.userId, userId),
-          // A year back, for the streak; the weekly chart only uses the last 7 days.
-          gte(focusSessions.endedAt, new Date(Date.now() - 366 * 86400000)),
+  const [[user], [settings], userTasks, userHabits, recentFocus, streakStatus] =
+    await Promise.all([
+      db.select().from(users).where(eq(users.id, userId)).limit(1),
+      db
+        .select()
+        .from(userSettings)
+        .where(eq(userSettings.userId, userId))
+        .limit(1),
+      db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.userId, userId))
+        .orderBy(desc(tasks.createdAt)),
+      db.select().from(habits).where(eq(habits.userId, userId)),
+      db
+        .select({
+          minutes: focusSessions.durationMinutes,
+          startedAt: focusSessions.startedAt,
+          endedAt: focusSessions.endedAt,
+        })
+        .from(focusSessions)
+        .where(
+          and(
+            eq(focusSessions.userId, userId),
+            // A year back, for the streak; the weekly chart only uses the last 7 days.
+            gte(focusSessions.endedAt, new Date(Date.now() - 366 * 86400000)),
+          ),
         ),
-      ),
-  ]);
+      getStreakStatusService(userId),
+    ]);
 
   // Days are counted in the user's timezone, not the server's.
   const tz =
-    settings?.timezone && settings.timezone !== "UTC" ? settings.timezone : "Asia/Kolkata";
+    settings?.timezone && settings.timezone !== "UTC"
+      ? settings.timezone
+      : "Asia/Kolkata";
   const localDateStr = (d: Date) => {
     try {
       return new Intl.DateTimeFormat("en-CA", {
@@ -99,7 +119,15 @@ export async function getAnalyticsService(
   };
   const localHour = (d: Date) => {
     try {
-      return Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(d)) % 24;
+      return (
+        Number(
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: tz,
+            hour: "numeric",
+            hour12: false,
+          }).format(d),
+        ) % 24
+      );
     } catch {
       return d.getHours();
     }
@@ -227,14 +255,48 @@ export async function getAnalyticsService(
   // Best time of day, from when the user actually focuses and finishes tasks
   // in the last 30 days (it used to guess from task due times).
   const BUCKETS = [
-    { key: "early", label: "5:00 AM – 9:00 AM", name: "early morning", from: 5, to: 9 },
-    { key: "morning", label: "9:00 AM – 1:00 PM", name: "morning", from: 9, to: 13 },
-    { key: "afternoon", label: "1:00 PM – 5:00 PM", name: "afternoon", from: 13, to: 17 },
-    { key: "evening", label: "5:00 PM – 10:00 PM", name: "evening", from: 17, to: 22 },
-    { key: "night", label: "10:00 PM – 5:00 AM", name: "late night", from: 22, to: 29 },
+    {
+      key: "early",
+      label: "5:00 AM – 9:00 AM",
+      name: "early morning",
+      from: 5,
+      to: 9,
+    },
+    {
+      key: "morning",
+      label: "9:00 AM – 1:00 PM",
+      name: "morning",
+      from: 9,
+      to: 13,
+    },
+    {
+      key: "afternoon",
+      label: "1:00 PM – 5:00 PM",
+      name: "afternoon",
+      from: 13,
+      to: 17,
+    },
+    {
+      key: "evening",
+      label: "5:00 PM – 10:00 PM",
+      name: "evening",
+      from: 17,
+      to: 22,
+    },
+    {
+      key: "night",
+      label: "10:00 PM – 5:00 AM",
+      name: "late night",
+      from: 22,
+      to: 29,
+    },
   ];
   const bucketOf = (hour: number) =>
-    BUCKETS.find((b) => (hour >= b.from && hour < b.to) || (hour + 24 >= b.from && hour + 24 < b.to)) || BUCKETS[1];
+    BUCKETS.find(
+      (b) =>
+        (hour >= b.from && hour < b.to) ||
+        (hour + 24 >= b.from && hour + 24 < b.to),
+    ) || BUCKETS[1];
   const monthAgo = now.getTime() - 30 * 86400000;
   const bucketScore = new Map<string, number>();
   for (const f of recentFocus) {
@@ -261,28 +323,7 @@ export async function getAnalyticsService(
     } Plan your hardest work then.`;
   }
 
-  // Streak = consecutive days with any real activity (a task done, a habit
-  // checked in, or a focus session). It used to read users.streak, which was
-  // set to 1 at signup and never updated.
-  const activeDays = new Set<string>();
-  for (const t of userTasks) {
-    if (t.completed) activeDays.add(localDateStr(new Date(t.updatedAt || t.createdAt)));
-  }
-  for (const h of userHabits) {
-    for (const d of (h.completedDates as string[]) || []) activeDays.add(d);
-  }
-  for (const f of recentFocus) activeDays.add(localDateStr(f.endedAt));
-
-  let streak = 0;
-  for (let i = 0; i < 366; i++) {
-    const day = localDateStr(new Date(now.getTime() - i * 86400000));
-    if (activeDays.has(day)) streak++;
-    else if (i === 0) continue; // nothing yet today doesn't break yesterday's streak
-    else break;
-  }
-  if (user && user.streak !== streak) {
-    db.update(users).set({ streak }).where(eq(users.id, userId)).catch(() => {});
-  }
+  const streak = streakStatus.current;
   // Labels only describe the user's own numbers (no made-up "Top X%").
   const velocityTier =
     weeklyAdherenceRate >= 90 && streak >= 7
@@ -363,6 +404,7 @@ export async function getAnalyticsService(
     weeklyAdherenceRate,
     habitCompletionRate,
     streak,
+    streakStatus,
     xp: user?.xp || 0,
     level: user?.level || 1,
     xpToNextLevel: Math.floor(1000 * Math.pow(1.3, (user?.level || 1) - 1)),
