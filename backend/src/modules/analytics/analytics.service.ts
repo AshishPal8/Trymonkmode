@@ -8,6 +8,7 @@ import {
   userSettings,
   focusSessions,
 } from "../../db/schema.js";
+import { dayInTimezone, hourInTimezone, userTimezone } from "../../utils/date.js";
 
 export interface DailyVelocity {
   day: string; // 'Mon', 'Tue', ...
@@ -101,37 +102,9 @@ export async function getAnalyticsService(
     ]);
 
   // Days are counted in the user's timezone, not the server's.
-  const tz =
-    settings?.timezone && settings.timezone !== "UTC"
-      ? settings.timezone
-      : "Asia/Kolkata";
-  const localDateStr = (d: Date) => {
-    try {
-      return new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(d);
-    } catch {
-      return d.toISOString().slice(0, 10);
-    }
-  };
-  const localHour = (d: Date) => {
-    try {
-      return (
-        Number(
-          new Intl.DateTimeFormat("en-US", {
-            timeZone: tz,
-            hour: "numeric",
-            hour12: false,
-          }).format(d),
-        ) % 24
-      );
-    } catch {
-      return d.getHours();
-    }
-  };
+  const tz = userTimezone(settings?.timezone);
+  const localDateStr = (d: Date) => dayInTimezone(d, tz);
+  const localHour = (d: Date) => hourInTimezone(d, tz);
   const focusMinutesByDay = new Map<string, number>();
   for (const f of recentFocus) {
     const key = localDateStr(f.endedAt);

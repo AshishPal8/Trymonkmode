@@ -40,7 +40,13 @@ export const updateMilestoneSchema = z.object({
   orderIndex: z.number().int().min(0).optional(),
 });
 
+/** Milestone ids in their new order (all of the goal's milestones). */
+export const reorderMilestonesSchema = z.object({
+  milestoneIds: z.array(z.number().int().positive()).min(1).max(50),
+});
+
 export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 export type CreateMilestoneInput = z.infer<typeof createMilestoneSchema>;
 export type UpdateMilestoneInput = z.infer<typeof updateMilestoneSchema>;
+export type ReorderMilestonesInput = z.infer<typeof reorderMilestonesSchema>;

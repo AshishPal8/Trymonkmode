@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useFocusStore, todayFocusMinutes, focusStreak } from "@/stores/focusStore";
+import { useFocusStore, todayFocusMinutes } from "@/stores/focusStore";
 import { ambientSound, AmbientSoundType } from "@/lib/audio";
 import { FocusAnalyticsCard } from "./components/FocusAnalyticsCard";
 import { FocusTaskPicker } from "./components/FocusTaskPicker";
 import { DistractionNotes } from "./components/DistractionNotes";
+import { StopwatchPanel } from "./components/StopwatchPanel";
 import { FocusFullscreen } from "./components/FocusFullscreen";
 import { FocusHistory } from "./components/FocusHistory";
 import { useApp } from "@/lib/store";
@@ -58,11 +59,6 @@ export function PomodoroView() {
     resetTimer,
     completeTimerSession,
     getRemainingSeconds,
-    isStopwatchRunning,
-    startStopwatch,
-    pauseStopwatch,
-    resetStopwatch,
-    getStopwatchElapsedMs,
     activeAmbient,
     setActiveAmbient,
     spotifyUri,
@@ -91,38 +87,25 @@ export function PomodoroView() {
 
   // Local render tick for smooth display
   const [currentSeconds, setCurrentSeconds] = useState(getRemainingSeconds());
-  const [stopwatchMs, setStopwatchMs] = useState(getStopwatchElapsedMs());
 
   const focusSessions = useFocusStore((s) => s.focusSessions);
   // From the sessions list, so the numbers update when sessions load.
   const todayMinutes = todayFocusMinutes(focusSessions);
-  const streak = focusStreak(focusSessions);
 
   // Sync remaining seconds on tick
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSeconds(getRemainingSeconds());
-      if (activeTab === "stopwatch") {
-        setStopwatchMs(getStopwatchElapsedMs());
-      }
     }, 250);
 
     return () => clearInterval(interval);
-  }, [activeTab, getRemainingSeconds, getStopwatchElapsedMs]);
+  }, [getRemainingSeconds]);
 
   // Format MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
-
-  // Format Stopwatch MM:SS.SS
-  const formatStopwatch = (ms: number) => {
-    const mins = Math.floor(ms / 60000);
-    const secs = Math.floor((ms % 60000) / 1000);
-    const hundredths = Math.floor((ms % 1000) / 10);
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
   };
 
   const handleApplyCustomDuration = (e: React.FormEvent) => {
@@ -607,35 +590,9 @@ export function PomodoroView() {
           </div>
         </div>
       ) : (
-        /* Stopwatch View */
-        <div className="max-w-xl mx-auto p-8 rounded-3xl ios-card text-center space-y-6">
-          <div className="text-5xl font-bold font-mono tracking-tight text-card-foreground py-4">
-            {formatStopwatch(stopwatchMs)}
-          </div>
-
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={resetStopwatch}
-              className="px-5 py-2.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold hover:text-foreground cursor-pointer transition active:scale-95"
-            >
-              Reset
-            </button>
-            <Button
-              onClick={() =>
-                isStopwatchRunning ? pauseStopwatch() : startStopwatch()
-              }
-              className={`px-8 py-3 rounded-full text-white text-xs font-bold shadow-md cursor-pointer transition active:scale-95 ${
-                isStopwatchRunning
-                  ? "bg-[#FF5C39] hover:bg-[#E04B2A]"
-                  : "bg-[#0052FF] hover:bg-[#0043D6]"
-              }`}
-            >
-              {isStopwatchRunning ? "Pause" : "Start"}
-            </Button>
-          </div>
-        </div>
+        <StopwatchPanel />
       )}
-      {activeTab === "pomodoro" && <FocusHistory />}
+      <FocusHistory />
 
       {isFullscreen && (
         <FocusFullscreen

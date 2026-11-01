@@ -5,6 +5,7 @@ import { ToastContainer, toast } from "@/components/ui/toast";
 import { pagesApi, authApi } from "@/lib/api";
 import { getTodayDateString, triggerCelebrationConfetti } from "@/lib/utils";
 import { DailyQuest } from "@/lib/types";
+import { captureInviteFromUrl } from "@/lib/pendingInvite";
 
 export * from "./userStore";
 export * from "./taskStore";
@@ -113,6 +114,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     userStore.setTheme(userStore.theme, false);
+    // A friend's invite link (?invite=CODE) is kept until the user is signed in.
+    captureInviteFromUrl();
 
     // After Google sign-in the backend sends us back with a one-time `code`.
     // Swap it for tokens with a POST (tokens are never put in the URL).

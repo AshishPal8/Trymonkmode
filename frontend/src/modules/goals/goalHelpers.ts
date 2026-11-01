@@ -1,5 +1,7 @@
 import type { GoalItem, GoalKind, GoalMilestone } from "@/lib/types";
-import { getTodayDateString } from "@/lib/utils";
+import { formatMinutes, getTodayDateString } from "@/lib/utils";
+
+export { formatMinutes };
 
 export const GOAL_KINDS: { value: GoalKind; label: string; hint: string; emoji: string }[] = [
   { value: "project", label: "Project", hint: "Milestones + tasks, e.g. Learn DSA", emoji: "🧩" },
@@ -13,14 +15,6 @@ export const GOAL_CATEGORIES = ["Learning", "Career", "Fitness", "Finance", "Per
 
 export const GOAL_COLORS = ["#0052FF", "#8B5CF6", "#10B981", "#F59E0B", "#EC4899", "#06B6D4", "#EF4444"];
 
-/** 95 -> "1h 35m", 30 -> "30m". */
-export function formatMinutes(min: number): string {
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m ? `${h}h ${m}m` : `${h}h`;
-}
-
 /** Days from today to `date` (negative = overdue). Null if no date. */
 export function daysUntil(date?: string | null): number | null {
   if (!date) return null;
@@ -29,7 +23,15 @@ export function daysUntil(date?: string | null): number | null {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
-export function deadlineLabel(date?: string | null): { text: string; tone: "muted" | "warn" | "danger" } | null {
+export type DeadlineTone = "muted" | "warn" | "danger";
+
+export const TONE_CLASS: Record<DeadlineTone, string> = {
+  muted: "text-muted-foreground",
+  warn: "text-amber-500",
+  danger: "text-rose-500",
+};
+
+export function deadlineLabel(date?: string | null): { text: string; tone: DeadlineTone } | null {
   const d = daysUntil(date);
   if (d === null) return null;
   if (d < 0) return { text: `${-d} day${d === -1 ? "" : "s"} overdue`, tone: "danger" };

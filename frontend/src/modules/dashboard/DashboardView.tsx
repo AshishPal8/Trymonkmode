@@ -15,11 +15,13 @@ import { PeakPerformanceCard } from "./components/PeakPerformanceCard";
 import { WeeklyVelocityChart } from "./components/WeeklyVelocityChart";
 import { HabitsAndCalendarWidget } from "./components/HabitsAndCalendarWidget";
 import { DashboardEngagementWidgets } from "./components/DashboardEngagementWidgets";
+import { GoalTasksCard } from "./components/GoalTasksCard";
 
 export function DashboardView() {
   const {
     user,
     tasks,
+    goals,
     toggleTask,
     habits,
     toggleHabitForDate,
@@ -143,6 +145,9 @@ export function DashboardView() {
             onMarkDone={handleMarkDone}
             onEdit={openQuickAdd}
           />
+
+          {/* Next tasks from active goals */}
+          <GoalTasksCard tasks={tasks} goals={goals} onToggleTask={toggleTask} onNavigate={setActiveModule} />
 
           {/* Categories & Hubs */}
           <CategoryHubsGrid

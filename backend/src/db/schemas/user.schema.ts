@@ -17,6 +17,10 @@ export const users = pgTable('users', {
   avatar: text('avatar'),
   title: varchar('title', { length: 150 }).notNull().default(''),
   bio: text('bio').default(''),
+  // Public handle for friends (lowercase a-z, 0-9, _). Optional until the user picks one.
+  username: varchar('username', { length: 20 }).unique(),
+  // Personal invite link code (trymonkmode.in/?invite=CODE). Created on first use.
+  inviteCode: varchar('invite_code', { length: 12 }).unique(),
   role: varchar('role', { length: 50 }).notNull().default('user'), // 'superadmin' | 'admin' | 'user'
   xp: integer('xp').notNull().default(0),
   level: integer('level').notNull().default(1),
@@ -44,6 +48,8 @@ export const userSettings = pgTable('user_settings', {
   notifyHabitReminders: boolean('notify_habit_reminders').notNull().default(true),
   // Planned rest days (0 = Sunday ... 6 = Saturday). Missing one of these doesn't break the streak.
   restDays: jsonb('rest_days').notNull().default([]),
+  // Streak, focus time and level shown to friends and on leaderboards: 'public' | 'private'
+  statsVisibility: varchar('stats_visibility', { length: 20 }).notNull().default('public'),
   focusDuration: integer('focus_duration').notNull().default(25),
   shortBreakDuration: integer('short_break_duration').notNull().default(5),
   longBreakDuration: integer('long_break_duration').notNull().default(15),

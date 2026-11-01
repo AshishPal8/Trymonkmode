@@ -1,12 +1,14 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { goals, goalMilestones, tasks, focusSessions, users } from "../../db/schema.js";
+import { goals, goalMilestones, tasks, focusSessions } from "../../db/schema.js";
 import { BadRequestError, NotFoundError } from "../../utils/errors.js";
+import { addXp, XP } from "../../utils/xp.js";
 import type {
   CreateGoalInput,
   UpdateGoalInput,
   CreateMilestoneInput,
   UpdateMilestoneInput,
+  ReorderMilestonesInput,
 } from "./goals.schema.js";
 
 type GoalRow = typeof goals.$inferSelect;
@@ -197,7 +199,7 @@ export async function createGoalService(userId: number, input: CreateGoalInput) 
     );
   }
 
-  await db.update(users).set({ xp: sql`${users.xp} + 30` }).where(eq(users.id, userId));
+  await addXp(userId, XP.goalCreated);
   return getGoalDetailService(userId, goal.id);
 }
 
@@ -210,7 +212,7 @@ export async function updateGoalService(userId: number, goalId: number, input: U
 
   // Finishing a goal is worth celebrating (once).
   if (input.status === "done" && before.status !== "done") {
-    await db.update(users).set({ xp: sql`${users.xp} + 100` }).where(eq(users.id, userId));
+    await addXp(userId, XP.goalFinished);
   }
   return getGoalDetailService(userId, goalId);
 }
@@ -257,10 +259,31 @@ export async function updateMilestoneService(userId: number, milestoneId: number
 
   let xpGained = 0;
   if (input.completed === true && !before.completed) {
-    xpGained = 25;
-    await db.update(users).set({ xp: sql`${users.xp} + ${xpGained}` }).where(eq(users.id, userId));
+    xpGained = XP.milestoneDone;
+    await addXp(userId, xpGained);
   }
   return { milestone: m, xpGained };
+}
+
+/** Saves a new milestone order (e.g. after a drag). */
+export async function reorderMilestonesService(userId: number, goalId: number, input: ReorderMilestonesInput) {
+  await getOwnedGoal(userId, goalId);
+  const existing = await db
+    .select({ id: goalMilestones.id })
+    .from(goalMilestones)
+    .where(eq(goalMilestones.goalId, goalId));
+
+  const existingIds = new Set(existing.map((m) => m.id));
+  const sameSet =
+    input.milestoneIds.length === existingIds.size && input.milestoneIds.every((id) => existingIds.has(id));
+  if (!sameSet) throw new BadRequestError("Send every milestone of this goal, once each.");
+
+  await db.transaction(async (tx) => {
+    for (const [orderIndex, id] of input.milestoneIds.entries()) {
+      await tx.update(goalMilestones).set({ orderIndex }).where(eq(goalMilestones.id, id));
+    }
+  });
+  return getGoalDetailService(userId, goalId);
 }
 
 export async function deleteMilestoneService(userId: number, milestoneId: number) {

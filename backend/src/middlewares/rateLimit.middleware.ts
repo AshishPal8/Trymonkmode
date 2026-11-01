@@ -63,3 +63,9 @@ export const sendLimiter = limiter("send", {
   windowMs: 60 * 60 * 1000,
   limit: 20,
 });
+
+/** Friend requests and invite joins, per user. */
+export const socialLimiter = limiter("social", {
+  windowMs: 60 * 60 * 1000,
+  limit: 40,
+});

@@ -1,24 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  ArrowLeft,
-  Calendar,
-  CheckCircle2,
-  Circle,
-  Edit2,
-  Minus,
-  Plus,
-  Timer,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, Calendar, Edit2, Minus, Plus, Timer, Trash2 } from "lucide-react";
 import { useApp } from "@/lib/store";
-import type { GoalItem, GoalStatus, TaskItem } from "@/lib/types";
-import { getTodayDateString } from "@/lib/utils";
+import type { GoalItem, GoalStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { GOAL_KINDS, deadlineLabel, formatMinutes, isMilestoneDone, progressDetail } from "./goalHelpers";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { GOAL_KINDS, TONE_CLASS, deadlineLabel, formatMinutes, isMilestoneDone, progressDetail } from "./goalHelpers";
+import { AddGoalTaskInline, GoalTaskList } from "./GoalTaskList";
+import { MilestoneCard } from "./MilestoneCard";
 
 interface GoalDetailViewProps {
   goal: GoalItem;
@@ -37,10 +29,41 @@ const CONTROL = "h-9 rounded-xl";
 
 /** One goal, shown in place of the goal grid (no modal). */
 export function GoalDetailView({ goal, onBack, onEdit }: GoalDetailViewProps) {
-  const { tasks, updateGoal, deleteGoal, addMilestone, toggleGoalMilestone, deleteMilestone, setActiveModule } =
-    useApp();
+  const {
+    tasks,
+    updateGoal,
+    deleteGoal,
+    addMilestone,
+    toggleGoalMilestone,
+    updateMilestone,
+    moveMilestone,
+    deleteMilestone,
+    setActiveModule,
+  } = useApp();
   const { confirm, confirmDialog } = useConfirm();
   const [newMilestone, setNewMilestone] = useState("");
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  // Native drag & drop props for the milestone at `index`.
+  const dragPropsFor = (index: number): React.HTMLAttributes<HTMLDivElement> => ({
+    draggable: true,
+    onDragStart: () => setDragFrom(index),
+    onDragOver: (e) => {
+      e.preventDefault();
+      setDragOver(index);
+    },
+    onDragEnd: () => {
+      setDragFrom(null);
+      setDragOver(null);
+    },
+    onDrop: (e) => {
+      e.preventDefault();
+      if (dragFrom !== null) moveMilestone(goal.id, dragFrom, index);
+      setDragFrom(null);
+      setDragOver(null);
+    },
+  });
 
   const goalTasks = tasks.filter((t) => t.goalId === goal.id);
   const looseTasks = goalTasks.filter(
@@ -115,11 +138,7 @@ export function GoalDetailView({ goal, onBack, onEdit }: GoalDetailViewProps) {
                 {kind?.emoji} {kind?.label} · {goal.category}
               </span>
               {deadline && (
-                <span
-                  className={`flex items-center gap-1 ${
-                    deadline.tone === "danger" ? "text-rose-500" : deadline.tone === "warn" ? "text-amber-500" : ""
-                  }`}
-                >
+                <span className={`flex items-center gap-1 ${TONE_CLASS[deadline.tone]}`}>
                   · <Calendar className="w-3 h-3" /> {deadline.text}
                 </span>
               )}
@@ -128,20 +147,13 @@ export function GoalDetailView({ goal, onBack, onEdit }: GoalDetailViewProps) {
             {goal.why && <p className="text-xs text-muted-foreground italic">“{goal.why}”</p>}
           </div>
 
-          <div className="flex p-1 rounded-xl bg-muted/60 border border-border shrink-0">
-            {STATUSES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => updateGoal(goal.id, { status: s.value })}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  goal.status === s.value ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            size="sm"
+            value={goal.status}
+            onChange={(status) => updateGoal(goal.id, { status })}
+            options={STATUSES}
+            className="shrink-0"
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -221,47 +233,22 @@ export function GoalDetailView({ goal, onBack, onEdit }: GoalDetailViewProps) {
             </p>
           )}
 
-          {goal.milestones.map((m) => {
-            const done = isMilestoneDone(m);
-            return (
-              <div key={m.id} className="rounded-2xl border border-border bg-muted/20 p-3 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => toggleGoalMilestone(goal.id, m.id)}
-                    aria-label={m.completed ? "Mark milestone not done" : "Mark milestone done"}
-                    className="cursor-pointer shrink-0"
-                  >
-                    {done ? (
-                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />
-                    ) : (
-                      <Circle className="w-4.5 h-4.5 text-muted-foreground" />
-                    )}
-                  </button>
-                  <span
-                    className={`flex-1 text-sm font-semibold ${done ? "line-through text-muted-foreground" : "text-foreground"}`}
-                  >
-                    {m.title}
-                  </span>
-                  {m.taskTotal > 0 && (
-                    <span className="text-[11px] text-muted-foreground font-mono">
-                      {m.taskDone}/{m.taskTotal}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteMilestone(m.id, m.title)}
-                    aria-label="Delete milestone"
-                    className="p-1 rounded-md text-muted-foreground/60 hover:text-rose-500 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <TaskList tasks={goalTasks.filter((t) => t.milestoneId === m.id)} />
-                <AddTaskInline goalId={goal.id} milestoneId={m.id} />
-              </div>
-            );
-          })}
+          {goal.milestones.map((m, index) => (
+            <MilestoneCard
+              key={m.id}
+              goalId={goal.id}
+              milestone={m}
+              tasks={goalTasks.filter((t) => t.milestoneId === m.id)}
+              isFirst={index === 0}
+              isLast={index === goal.milestones.length - 1}
+              isDragOver={dragOver === index && dragFrom !== index}
+              onToggle={() => toggleGoalMilestone(goal.id, m.id)}
+              onDelete={() => handleDeleteMilestone(m.id, m.title)}
+              onDueDateChange={(dueDate) => updateMilestone(goal.id, m.id, { dueDate })}
+              onMove={(direction) => moveMilestone(goal.id, index, index + direction)}
+              dragProps={dragPropsFor(index)}
+            />
+          ))}
 
           <form onSubmit={handleAddMilestone} className="flex items-center gap-2">
             <Input
@@ -285,78 +272,12 @@ export function GoalDetailView({ goal, onBack, onEdit }: GoalDetailViewProps) {
           {looseTasks.length === 0 && (
             <p className="text-xs text-muted-foreground">Tasks for this goal that don&apos;t belong to a milestone.</p>
           )}
-          <TaskList tasks={looseTasks} />
-          <AddTaskInline goalId={goal.id} />
+          <GoalTaskList tasks={looseTasks} />
+          <AddGoalTaskInline goalId={goal.id} />
         </div>
       </div>
 
       {confirmDialog}
     </div>
-  );
-}
-
-function TaskList({ tasks }: { tasks: TaskItem[] }) {
-  const { toggleTask } = useApp();
-  if (tasks.length === 0) return null;
-  const sorted = [...tasks].sort(
-    (a, b) => Number(a.completed) - Number(b.completed) || a.dueDate.localeCompare(b.dueDate),
-  );
-  return (
-    <div className="space-y-0.5">
-      {sorted.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => toggleTask(t.id)}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/60 text-left cursor-pointer"
-        >
-          {t.completed ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-          ) : (
-            <Circle className="w-4 h-4 text-muted-foreground shrink-0" />
-          )}
-          <span className={`flex-1 text-xs ${t.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
-            {t.title}
-          </span>
-          <span className="text-[10px] text-muted-foreground font-mono">{t.dueDate.slice(5)}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function AddTaskInline({ goalId, milestoneId }: { goalId: string; milestoneId?: string }) {
-  const { addTask } = useApp();
-  const [title, setTitle] = useState("");
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    addTask({
-      title: title.trim(),
-      priority: "P2",
-      dueDate: getTodayDateString(),
-      category: "Work",
-      tags: [],
-      subtasks: [],
-      completed: false,
-      quadrant: "notUrgent-important",
-      goalId,
-      milestoneId: milestoneId || null,
-    });
-    setTitle("");
-  };
-
-  return (
-    <form onSubmit={submit} className="flex items-center gap-2 px-2">
-      <Plus className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        maxLength={255}
-        placeholder="Add a task and press Enter"
-        className="flex-1 bg-transparent text-xs py-1.5 placeholder:text-muted-foreground/70 focus:outline-none"
-      />
-    </form>
   );
 }

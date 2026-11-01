@@ -33,6 +33,8 @@ import { notificationRoutes } from "./modules/notifications/notifications.route.
 import { settingsRoutes } from "./modules/settings/settings.route.js";
 import { focusRoutes } from "./modules/focus/focus.route.js";
 import { streakRoutes } from "./modules/streak/streak.route.js";
+import { socialRoutes } from "./modules/social/social.route.js";
+import { challengeRoutes } from "./modules/challenges/challenge.route.js";
 
 export const app = express();
 
@@ -114,6 +116,8 @@ app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/settings", settingsRoutes);
 app.use("/api/v1/focus", focusRoutes);
 app.use("/api/v1/streak", streakRoutes);
+app.use("/api/v1/social", socialRoutes);
+app.use("/api/v1/challenges", challengeRoutes);
 
 app.use((_req, _res, next) => {
   next(new NotFoundError("The requested endpoint or resource does not exist."));

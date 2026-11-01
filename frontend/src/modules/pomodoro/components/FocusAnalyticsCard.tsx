@@ -180,7 +180,7 @@ export function FocusAnalyticsCard({
 
         {/* Graph Columns */}
         <div className="pt-4 pb-1 grid grid-cols-7 gap-2 sm:gap-3 items-end h-44">
-          {past7Days.map((day, idx) => {
+          {past7Days.map((day) => {
             const heightPercent =
               maxMinutes > 0 ? Math.round((day.minutes / maxMinutes) * 100) : 0;
             const meetsGoal = day.minutes >= dailyTarget;

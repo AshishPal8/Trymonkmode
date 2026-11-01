@@ -23,6 +23,7 @@ import {
   NotFoundError,
 } from "../../utils/errors.js";
 import { env } from "../../config/env.js";
+import { generateUniqueUsername } from "../social/social.profile.service.js";
 
 export interface GoogleProfile {
   id: string;
@@ -82,6 +83,7 @@ export async function getFullUserProfile(userId: number) {
     id: user.id,
     email: user.email,
     name: user.name,
+    username: user.username,
     avatar:
       user.avatar && !user.avatar.includes("images.unsplash.com")
         ? user.avatar
@@ -242,6 +244,7 @@ export async function findOrCreateGoogleUser(
       .values({
         email,
         name: displayName,
+        username: await generateUniqueUsername(displayName, email),
         avatar: picture || null,
         title: "",
         bio: "",
@@ -410,6 +413,7 @@ export async function verifyOtpService(
       .values({
         email,
         name: displayName,
+        username: await generateUniqueUsername(displayName, email),
         title: "",
         bio: "",
         role: "user",

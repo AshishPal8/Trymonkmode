@@ -14,3 +14,5 @@ export * from "./schemas/notifications.schema.js";
 export * from "./schemas/settings.schema.js";
 export * from "./schemas/focus.schema.js";
 export * from "./schemas/streak.schema.js";
+export * from "./schemas/social.schema.js";
+export * from "./schemas/challenge.schema.js";

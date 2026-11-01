@@ -28,6 +28,17 @@ const DOT_LABEL: Record<StreakDayState, string> = {
   future: "Coming up",
 };
 
+const START_HINT = "Finish a task, habit or focus session";
+
+/** One line under the number: what today means for the streak. */
+function streakSubtitle(streak: number, status?: StreakStatus): string {
+  if (!status) return streak > 0 ? "Days in a row with progress" : START_HINT;
+  if (status.activeToday) return "🔥 Done for today";
+  if (status.todayIsRest) return "🛌 Rest day: your streak is safe";
+  if (status.current > 0) return "Do one thing today to keep it";
+  return START_HINT;
+}
+
 interface StreakTileProps {
   streak: number;
   status?: StreakStatus;
@@ -72,17 +83,7 @@ export function StreakTile({ streak, status, onChanged }: StreakTileProps) {
     }
   };
 
-  const subtitle = !status
-    ? streak > 0
-      ? "Days in a row with progress"
-      : "Finish a task, habit or focus session"
-    : status.todayIsRest && !status.activeToday
-      ? "🛌 Rest day: your streak is safe"
-      : status.activeToday
-        ? "🔥 Done for today"
-        : status.current > 0
-          ? "Do one thing today to keep it"
-          : "Finish a task, habit or focus session";
+  const subtitle = streakSubtitle(streak, status);
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl ios-card shadow-sm space-y-2">

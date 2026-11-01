@@ -9,6 +9,8 @@ import { ModuleContainer } from "@/components/layout/ModuleContainer";
 import { GoalFormModal } from "./GoalFormModal";
 import { GoalDetailView } from "./GoalDetailView";
 import { GOAL_KINDS, deadlineLabel, formatMinutes, progressDetail } from "./goalHelpers";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 
 const FILTERS: { value: GoalStatus | "all"; label: string }[] = [
   { value: "active", label: "Active" },
@@ -68,33 +70,22 @@ export function GoalsView() {
 
   return (
     <ModuleContainer>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Goals & Projects</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Break big goals into milestones and tasks, and see your daily work add up.
-          </p>
-        </div>
-        <Button onClick={openCreate} className="text-xs font-semibold rounded-xl px-4 py-2 gap-1.5">
-          <Plus className="w-3.5 h-3.5" />
-          New goal
-        </Button>
-      </div>
+      <PageHeader
+        title="Goals & Projects"
+        description="Break big goals into milestones and tasks, and see your daily work add up."
+        actions={
+          <Button onClick={openCreate} className="text-xs font-semibold rounded-xl px-4 py-2 gap-1.5">
+            <Plus className="w-3.5 h-3.5" />
+            New goal
+          </Button>
+        }
+      />
 
-      <div className="flex items-center gap-1.5 p-1.5 ios-card rounded-2xl w-fit">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
-              filter === f.value ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {f.label}
-            <span className="text-[10px] opacity-70">{counts[f.value]}</span>
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        value={filter}
+        onChange={setFilter}
+        options={FILTERS.map((f) => ({ ...f, label: `${f.label} ${counts[f.value]}` }))}
+      />
 
       {visible.length === 0 ? (
         <div className="p-12 text-center rounded-3xl ios-card border border-border space-y-3">

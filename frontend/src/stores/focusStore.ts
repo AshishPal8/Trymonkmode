@@ -77,6 +77,8 @@ export interface FocusStoreState {
   startStopwatch: () => void;
   pauseStopwatch: () => void;
   resetStopwatch: () => void;
+  /** Saves the stopwatch time as a focus session and resets it. */
+  finishStopwatch: () => void;
 
   setActiveAmbient: (type: AmbientSoundType) => void;
   setAmbientVolume: (vol: number) => void;
@@ -88,6 +90,8 @@ export interface FocusStoreState {
   /** Saves the current focus session (actual focused time, pauses excluded)
    *  if at least 1 minute was focused. Safe to call when nothing is running. */
   saveCurrentFocus: (completed: boolean) => void;
+  /** Logs a session locally and saves it on the server. Skips anything under 1 minute. */
+  saveSession: (session: SessionToSave) => void;
 
   // Analytics Helpers
   getRemainingSeconds: () => number;
@@ -150,6 +154,27 @@ export function focusStreak(sessions: FocusSession[]): number {
     else break;
   }
   return streak;
+}
+
+// ─── Saving a session ────────────────────────────────────────────────────────
+
+interface SessionToSave {
+  minutes: number;
+  plannedMinutes: number;
+  completed: boolean;
+  mode: "pomodoro" | "stopwatch";
+  startedAt: Date;
+}
+
+/** Only real (server) task ids can be linked; temporary ones start with a letter. */
+const serverTaskId = (id: string | null) => (id && /^\d+$/.test(id) ? Number(id) : undefined);
+
+/** After a session is saved: refresh the dashboard numbers and the task's goal. */
+function refreshAfterSave(taskId?: number) {
+  useAnalyticsStore.getState().fetchAnalytics();
+  if (!taskId) return;
+  const goalId = useTaskStore.getState().tasks.find((t) => t.id === String(taskId))?.goalId;
+  if (goalId) useGoalsStore.getState().refreshGoal(goalId);
 }
 
 export const useFocusStore = create<FocusStoreState>()(
@@ -351,6 +376,24 @@ export const useFocusStore = create<FocusStoreState>()(
         });
       },
 
+      finishStopwatch: () => {
+        const elapsedMs = get().getStopwatchElapsedMs();
+        const minutes = Math.round(elapsedMs / 60000);
+        if (minutes < 1) {
+          toast.info("Focus for at least a minute to save a session.");
+          return;
+        }
+        get().saveSession({
+          minutes,
+          plannedMinutes: minutes,
+          completed: true,
+          mode: 'stopwatch',
+          startedAt: new Date(Date.now() - elapsedMs),
+        });
+        get().resetStopwatch();
+        toast.success(`Saved ${minutes} min of focus. +${minutes * 2} XP`);
+      },
+
       setActiveAmbient: (type) => set({ activeAmbient: type }),
       setAmbientVolume: (vol) => set({ ambientVolume: vol }),
       setSpotifyUri: (uri) => set({ spotifyUri: uri }),
@@ -369,32 +412,30 @@ export const useFocusStore = create<FocusStoreState>()(
       },
 
       saveCurrentFocus: (completed) => {
-        const {
-          mode,
-          sessionStartTime,
-          sessionTotalSecs,
-          durationMins,
-          currentTag,
-          currentTaskId,
-          currentTaskTitle,
-          distractionNotes,
-        } = get();
+        const { mode, sessionStartTime, sessionTotalSecs, durationMins } = get();
         if (mode !== 'pomodoro' || !sessionStartTime) return;
 
         const plannedSecs = sessionTotalSecs ?? durationMins.pomodoro * 60;
-        const focusedSecs = completed
-          ? plannedSecs
-          : Math.max(0, plannedSecs - get().getRemainingSeconds());
-        const minutes = Math.round(focusedSecs / 60);
-        if (minutes < 1) return; // under ~30 seconds: not worth saving
+        const focusedSecs = completed ? plannedSecs : Math.max(0, plannedSecs - get().getRemainingSeconds());
+        get().saveSession({
+          minutes: Math.round(focusedSecs / 60),
+          plannedMinutes: Math.max(1, Math.round(plannedSecs / 60)),
+          completed,
+          mode: 'pomodoro',
+          startedAt: new Date(sessionStartTime),
+        });
+      },
 
+      saveSession: ({ minutes, plannedMinutes, completed, mode, startedAt }) => {
+        if (minutes < 1) return; // under ~30 seconds: not worth saving
+        const { currentTag, currentTaskId, currentTaskTitle, distractionNotes } = get();
         const endedAt = new Date();
         const notes = distractionNotes.join('\n') || undefined;
-        // Only real (server) task ids can be linked.
-        const taskId = currentTaskId && /^\d+$/.test(currentTaskId) ? Number(currentTaskId) : undefined;
+        const taskId = serverTaskId(currentTaskId);
+
         get().logFocusSession({
           durationMinutes: minutes,
-          mode: 'pomodoro',
+          mode,
           tag: currentTag,
           taskTitle: currentTaskTitle || undefined,
           notes,
@@ -406,26 +447,17 @@ export const useFocusStore = create<FocusStoreState>()(
         focusApi
           .createSession({
             durationMinutes: minutes,
-            plannedMinutes: Math.max(1, Math.round(plannedSecs / 60)),
+            plannedMinutes,
             completed,
-            mode: 'pomodoro',
+            mode,
             tag: currentTag || 'Deep Work',
             taskId,
             notes,
-            startedAt: new Date(sessionStartTime).toISOString(),
+            startedAt: startedAt.toISOString(),
             endedAt: endedAt.toISOString(),
           })
-          .then(() => {
-            useAnalyticsStore.getState().fetchAnalytics();
-            // Time on a task counts toward its goal.
-            if (taskId) {
-              const goalId = useTaskStore.getState().tasks.find((t) => t.id === String(taskId))?.goalId;
-              if (goalId) useGoalsStore.getState().refreshGoal(goalId);
-            }
-          })
-          .catch(() => {
-            toast.error("Couldn't save this focus session to your account.");
-          });
+          .then(() => refreshAfterSave(taskId))
+          .catch(() => toast.error("Couldn't save this focus session to your account."));
       },
 
       getRemainingSeconds: () => {

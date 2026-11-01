@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express';
 import {
   getGoalsService,
   getGoalDetailService,
@@ -8,26 +7,11 @@ import {
   createMilestoneService,
   updateMilestoneService,
   deleteMilestoneService,
+  reorderMilestonesService,
 } from './goals.service.js';
 import { sendResponse } from '../../utils/apiResponse.js';
 import { HttpStatus } from '../../utils/httpStatus.js';
-import { BadRequestError } from '../../utils/errors.js';
-
-type Handler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;
-const wrap = (fn: (req: Request, res: Response) => Promise<unknown>): Handler =>
-  async (req, res, next) => {
-    try {
-      await fn(req, res);
-    } catch (error) {
-      next(error);
-    }
-  };
-
-function idParam(req: Request, name = 'id') {
-  const id = Number(req.params[name]);
-  if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Invalid id.');
-  return id;
-}
+import { asyncHandler as wrap, idParam } from '../../utils/http.js';
 
 export const getGoalsHandler = wrap(async (req, res) => {
   const data = await getGoalsService(req.user!.userId, req.query.timeframe as string | undefined);
@@ -67,4 +51,9 @@ export const updateMilestoneHandler = wrap(async (req, res) => {
 export const deleteMilestoneHandler = wrap(async (req, res) => {
   const data = await deleteMilestoneService(req.user!.userId, idParam(req, 'milestoneId'));
   sendResponse({ res, message: data.message });
+});
+
+export const reorderMilestonesHandler = wrap(async (req, res) => {
+  const data = await reorderMilestonesService(req.user!.userId, idParam(req), req.body);
+  sendResponse({ res, message: 'Milestones reordered.', data });
 });

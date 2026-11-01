@@ -145,6 +145,7 @@ export type NotificationType =
   | "calendar_event"
   | "habit_reminder"
   | "focus"
+  | "social"
   | "system";
 
 export type PushPayload = {
@@ -253,6 +254,23 @@ export async function deliverPush(
     console.error(`❌ [Notifications] Failed sending push to user ${userId}:`, err);
     return { status: "failed", successCount: 0 };
   }
+}
+
+/** Puts a note in the user's in-app inbox only (no push). Never throws. */
+export function addToInbox(
+  userId: number,
+  note: { title: string; body: string; type?: NotificationType; data?: Record<string, unknown> },
+): void {
+  db.insert(notificationLogs)
+    .values({
+      userId,
+      title: note.title,
+      body: note.body,
+      type: note.type || "system",
+      data: note.data || {},
+      status: "in_app",
+    })
+    .catch((err) => console.error("❌ [Notifications] Failed to write inbox note:", err));
 }
 
 /** Sends a push to one user, checking their preference first. Writes a log row. */

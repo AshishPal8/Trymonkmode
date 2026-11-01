@@ -57,6 +57,10 @@ export function TopHeader() {
         return "Finance";
       case "analytics":
         return "Analytics";
+      case "leaderboard":
+        return "Leaderboard";
+      case "challenges":
+        return "Challenges";
       default:
         return "Dashboard";
     }

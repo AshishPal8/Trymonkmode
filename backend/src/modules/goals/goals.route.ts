@@ -8,6 +8,7 @@ import {
   createMilestoneHandler,
   updateMilestoneHandler,
   deleteMilestoneHandler,
+  reorderMilestonesHandler,
 } from './goals.controller.js';
 import { authenticate } from '../../middlewares/auth.middleware.js';
 import { validate } from '../../middlewares/validate.js';
@@ -16,6 +17,7 @@ import {
   updateGoalSchema,
   createMilestoneSchema,
   updateMilestoneSchema,
+  reorderMilestonesSchema,
 } from './goals.schema.js';
 
 const router = Router();
@@ -33,5 +35,6 @@ router.get('/:id', getGoalDetailHandler);
 router.patch('/:id', validate({ body: updateGoalSchema }), updateGoalHandler);
 router.delete('/:id', deleteGoalHandler);
 router.post('/:id/milestones', validate({ body: createMilestoneSchema }), createMilestoneHandler);
+router.put('/:id/milestones/order', validate({ body: reorderMilestonesSchema }), reorderMilestonesHandler);
 
 export const goalRoutes = router;

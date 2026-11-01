@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { GoalItem, GoalInput, GoalMilestone } from "@/lib/types";
 import { goalsApi } from "@/lib/api";
-import { soundFX, triggerCelebrationConfetti } from "@/lib/utils";
+import { moveItem, soundFX, triggerCelebrationConfetti } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { useUserStore } from "./userStore";
 
@@ -58,6 +58,9 @@ export interface GoalsStoreState {
   deleteGoal: (id: string) => Promise<void>;
   addMilestone: (goalId: string, title: string, dueDate?: string | null) => Promise<void>;
   toggleGoalMilestone: (goalId: string, milestoneId: string) => Promise<void>;
+  updateMilestone: (goalId: string, milestoneId: string, patch: { title?: string; dueDate?: string | null }) => Promise<void>;
+  /** Moves a milestone from one position to another and saves the order. */
+  moveMilestone: (goalId: string, from: number, to: number) => Promise<void>;
   deleteMilestone: (goalId: string, milestoneId: string) => Promise<void>;
 }
 
@@ -169,6 +172,34 @@ export const useGoalsStore = create<GoalsStoreState>()((set, get) => {
       } catch {
         replace(goal);
         toast.error("Couldn't update the milestone.");
+      }
+    },
+
+    updateMilestone: async (goalId, milestoneId, patch) => {
+      const goal = get().goals.find((g) => g.id === goalId);
+      if (!goal) return;
+      replace({
+        ...goal,
+        milestones: goal.milestones.map((m) => (m.id === milestoneId ? { ...m, ...patch } : m)),
+      });
+      try {
+        await goalsApi.updateMilestone(Number(milestoneId), patch);
+      } catch {
+        replace(goal);
+        toast.error("Couldn't update the milestone.");
+      }
+    },
+
+    moveMilestone: async (goalId, from, to) => {
+      const goal = get().goals.find((g) => g.id === goalId);
+      if (!goal || from === to || to < 0 || to >= goal.milestones.length) return;
+      const milestones = moveItem(goal.milestones, from, to);
+      replace({ ...goal, milestones });
+      try {
+        await goalsApi.reorderMilestones(Number(goalId), milestones.map((m) => Number(m.id)));
+      } catch {
+        replace(goal);
+        toast.error("Couldn't save the new order.");
       }
     },
 

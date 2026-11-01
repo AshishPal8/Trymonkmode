@@ -1,23 +1,34 @@
-export type DayState =
-  | "active"
-  | "rest"
-  | "repaired"
-  | "missed"
-  | "today"
-  | "future";
+// Pure streak rules (no database), so they're easy to test.
+//
+// A day keeps the streak alive if the user did something (task, habit or
+// focus session). Planned rest days and repaired days are "skipped": they
+// don't break the streak and don't add to it. Today is allowed to be empty
+// until the day is over.
+
+import { addDays, dayOfWeek, daysBetween, weekStartOf } from "../../utils/date.js";
+
+export type DayState = "active" | "rest" | "repaired" | "missed" | "today" | "future";
 
 export interface StreakInput {
   today: string;
   activeDays: Set<string>;
+  /** Weekdays the user rests on (0 = Sunday). */
   restDows: Set<number>;
   repairedDays: Set<string>;
 }
 
+export interface WeekDay {
+  date: string;
+  dow: number;
+  state: DayState;
+}
+
 export interface StreakResult {
   current: number;
+  /** The missed day that can still be repaired, if any. */
   brokenOn: string | null;
   streakIfRepaired: number | null;
-  week: { date: string; dow: number; state: DayState }[];
+  week: WeekDay[];
   activeDaysThisWeek: number;
   weekStart: string;
   todayIsRest: boolean;
@@ -25,87 +36,65 @@ export interface StreakResult {
 }
 
 export const REPAIR_WINDOW_DAYS = 7;
-const MAX_LOOKBACK = 400;
+const MAX_LOOKBACK_DAYS = 400;
 
-export function addDays(date: string, n: number): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
+const isSkipped = (input: StreakInput, day: string) =>
+  input.restDows.has(dayOfWeek(day)) || input.repairedDays.has(day);
 
-export function dayOfWeek(date: string): number {
-  return new Date(`${date}T00:00:00Z`).getUTCDay();
-}
-
-/** Monday of the week containing `date`. */
-export function weekStartOf(date: string): string {
-  const dow = dayOfWeek(date);
-  return addDays(date, dow === 0 ? -6 : 1 - dow);
-}
-
-function walk(
-  input: StreakInput,
-  fromDay: string,
-  allowEmptyFirstDay: boolean,
-): { count: number; brokenOn: string | null } {
+/** Counts active days going back from `fromDay` until a missed day. */
+function countBack(input: StreakInput, fromDay: string, allowEmptyFirstDay: boolean) {
   let count = 0;
-  for (let i = 0; i < MAX_LOOKBACK; i++) {
+  for (let i = 0; i < MAX_LOOKBACK_DAYS; i++) {
     const day = addDays(fromDay, -i);
-    if (input.activeDays.has(day)) {
-      count++;
-      continue;
-    }
-    if (i === 0 && allowEmptyFirstDay) continue;
-    if (input.restDows.has(dayOfWeek(day)) || input.repairedDays.has(day))
-      continue;
-    return { count, brokenOn: day };
+    if (input.activeDays.has(day)) count++;
+    else if (i === 0 && allowEmptyFirstDay) continue;
+    else if (!isSkipped(input, day)) return { count, brokenOn: day };
   }
   return { count, brokenOn: null };
 }
 
-export function computeStreak(input: StreakInput): StreakResult {
-  const { today } = input;
-  const main = walk(input, today, true);
+/** The missed day is repairable if it's recent and there was a streak before it. */
+function findRepair(input: StreakInput, current: number, missedDay: string | null) {
+  if (!missedDay) return null;
+  const age = daysBetween(missedDay, input.today);
+  if (age < 1 || age > REPAIR_WINDOW_DAYS) return null;
 
-  let brokenOn: string | null = null;
-  let streakIfRepaired: number | null = null;
-  if (main.brokenOn) {
-    const daysAgo = Math.round(
-      (new Date(`${today}T00:00:00Z`).getTime() -
-        new Date(`${main.brokenOn}T00:00:00Z`).getTime()) /
-        86400000,
-    );
-    if (daysAgo >= 1 && daysAgo <= REPAIR_WINDOW_DAYS) {
-      const before = walk(input, addDays(main.brokenOn, -1), false);
-      if (before.count > 0) {
-        brokenOn = main.brokenOn;
-        streakIfRepaired = main.count + before.count;
-      }
-    }
-  }
+  const before = countBack(input, addDays(missedDay, -1), false);
+  if (before.count === 0) return null;
+  return { brokenOn: missedDay, streakIfRepaired: current + before.count };
+}
 
-  const weekStart = weekStartOf(today);
-  const week = Array.from({ length: 7 }, (_, i) => {
+function stateOf(input: StreakInput, date: string): DayState {
+  const isRest = input.restDows.has(dayOfWeek(date));
+  if (input.activeDays.has(date)) return "active";
+  if (date > input.today) return "future";
+  if (date === input.today) return isRest ? "rest" : "today";
+  if (input.repairedDays.has(date)) return "repaired";
+  return isRest ? "rest" : "missed";
+}
+
+/** Monday to Sunday of the current week. */
+function buildWeek(input: StreakInput): WeekDay[] {
+  const weekStart = weekStartOf(input.today);
+  return Array.from({ length: 7 }, (_, i) => {
     const date = addDays(weekStart, i);
-    const dow = dayOfWeek(date);
-    let state: DayState;
-    if (input.activeDays.has(date)) state = "active";
-    else if (date > today) state = "future";
-    else if (date === today) state = input.restDows.has(dow) ? "rest" : "today";
-    else if (input.repairedDays.has(date)) state = "repaired";
-    else if (input.restDows.has(dow)) state = "rest";
-    else state = "missed";
-    return { date, dow, state };
+    return { date, dow: dayOfWeek(date), state: stateOf(input, date) };
   });
+}
+
+export function computeStreak(input: StreakInput): StreakResult {
+  const { count: current, brokenOn: missedDay } = countBack(input, input.today, true);
+  const repair = findRepair(input, current, missedDay);
+  const week = buildWeek(input);
 
   return {
-    current: main.count,
-    brokenOn,
-    streakIfRepaired,
+    current,
+    brokenOn: repair?.brokenOn ?? null,
+    streakIfRepaired: repair?.streakIfRepaired ?? null,
     week,
     activeDaysThisWeek: week.filter((d) => d.state === "active").length,
-    weekStart,
-    todayIsRest: input.restDows.has(dayOfWeek(today)),
-    activeToday: input.activeDays.has(today),
+    weekStart: week[0].date,
+    todayIsRest: input.restDows.has(dayOfWeek(input.today)),
+    activeToday: input.activeDays.has(input.today),
   };
 }

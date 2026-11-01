@@ -16,6 +16,8 @@ export type ActiveModuleId =
   | "bookmarks"
   | "finance"
   | "analytics"
+  | "leaderboard"
+  | "challenges"
   | "admin";
 
 export interface AppPageItem {
@@ -349,4 +351,124 @@ export interface StreakStatus {
   weeklyBonusXp: number;
   weeklyBonusEarned: boolean;
   bonusJustEarned: boolean;
+}
+
+// ─── Friends ─────────────────────────────────────────────────────────────────
+
+export type StatsVisibility = "public" | "private";
+
+export interface PublicUser {
+  id: number;
+  name: string;
+  username: string | null;
+  avatar: string | null;
+}
+
+/** Null when the friend keeps their stats private. */
+export interface FriendStats {
+  streak: number;
+  xp: number;
+  level: number;
+  weekFocusMinutes: number;
+}
+
+export interface Friend extends PublicUser {
+  since: string;
+  stats: FriendStats | null;
+}
+
+export interface FriendRequest extends PublicUser {
+  sentAt: string;
+}
+
+export interface FriendsData {
+  friends: Friend[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+  blocked: PublicUser[];
+}
+
+export interface SocialProfile {
+  username: string | null;
+  inviteCode: string;
+  statsVisibility: StatsVisibility;
+}
+
+export type LeaderboardSort = "xp" | "streak" | "focus";
+
+export interface LeaderboardEntry {
+  rank: number;
+  user: PublicUser;
+  stats: FriendStats;
+}
+
+export interface LeaderboardPage {
+  sort: LeaderboardSort;
+  page: number;
+  totalPages: number;
+  total: number;
+  items: LeaderboardEntry[];
+  /** Null when your stats are private. */
+  me: LeaderboardEntry | null;
+}
+
+// ─── Challenges ──────────────────────────────────────────────────────────────
+
+export type ChallengeMetric = "focus_minutes" | "focus_sessions" | "tasks_done" | "habit_checkins" | "manual";
+export type ChallengePhase = "upcoming" | "active" | "ended";
+
+export interface ChallengeStanding {
+  daysDone: number;
+  totalValue: number;
+  todayValue: number;
+  streak: number;
+}
+
+export interface Challenge {
+  id: number;
+  title: string;
+  description: string;
+  emoji: string;
+  metric: ChallengeMetric;
+  metricLabel: string;
+  dailyTarget: number;
+  durationDays: number;
+  startDate: string;
+  endDate: string;
+  phase: ChallengePhase;
+  dayNumber: number;
+  today: string;
+  memberCount: number;
+}
+
+export interface ChallengeListItem extends Challenge {
+  myStanding?: ChallengeStanding | null;
+}
+
+export interface ChallengeLists {
+  joined: ChallengeListItem[];
+  available: ChallengeListItem[];
+}
+
+export interface ChallengeRankRow {
+  rank: number;
+  user: PublicUser;
+  standing: ChallengeStanding;
+}
+
+export interface ChallengeDetail extends Challenge {
+  isMember: boolean;
+  canCheckIn: boolean;
+  leaderboard: ChallengeRankRow[];
+  me: ChallengeRankRow | null;
+}
+
+export interface NewChallengeInput {
+  title: string;
+  description: string;
+  emoji: string;
+  metric: ChallengeMetric;
+  dailyTarget: number;
+  durationDays: number;
+  startDate: string;
 }

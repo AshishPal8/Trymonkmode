@@ -26,6 +26,8 @@ import {
   ShieldAlert,
   Shield,
   ShieldCheck,
+  Trophy,
+  Swords,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -51,6 +53,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ShieldAlert,
   Shield,
   ShieldCheck,
+  Trophy,
+  Swords,
 };
 
 export function DesktopSidebar() {
@@ -97,6 +101,7 @@ export function DesktopSidebar() {
       "Focus",
       "Mind & Wellness",
       "Growth & Finance",
+      "Community",
     ];
     const map = new Map<string, typeof pages>();
 
