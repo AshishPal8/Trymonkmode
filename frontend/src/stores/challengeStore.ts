@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { ChallengeDetail, ChallengeLists, NewChallengeInput } from "@/lib/types";
 import { apiErrorMessage, challengesApi } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
-import { triggerCelebrationConfetti } from "@/lib/utils";
+import { isFresh, triggerCelebrationConfetti } from "@/lib/utils";
 
 const EMPTY: ChallengeLists = { joined: [], available: [] };
 
@@ -15,7 +15,9 @@ export interface ChallengeStoreState {
   openId: number | null;
   detail: ChallengeDetail | null;
 
-  loadList: () => Promise<void>;
+  listLoadedAt: number;
+  /** Skipped if loaded in the last minute, unless `force`. */
+  loadList: (force?: boolean) => Promise<void>;
   open: (id: number | null) => Promise<void>;
   /** Admins only. */
   create: (input: NewChallengeInput) => Promise<boolean>;
@@ -37,7 +39,7 @@ export const useChallengeStore = create<ChallengeStoreState>()((set, get) => {
       if (res?.data?.message) toast.success(res.data.message);
       const detail = res?.data?.data as ChallengeDetail | undefined;
       if (detail && "leaderboard" in detail) set({ detail, openId: detail.id });
-      get().loadList();
+      get().loadList(true);
       return true;
     } catch (err) {
       toast.error(apiErrorMessage(err, failMessage));
@@ -48,11 +50,13 @@ export const useChallengeStore = create<ChallengeStoreState>()((set, get) => {
   return {
     lists: EMPTY,
     isLoadingList: false,
+    listLoadedAt: 0,
     openId: null,
     detail: null,
 
-    loadList: async () => {
-      set({ isLoadingList: true });
+    loadList: async (force = false) => {
+      if (!force && isFresh(get().listLoadedAt)) return;
+      set({ isLoadingList: true, listLoadedAt: Date.now() });
       try {
         const res = await challengesApi.list();
         set({ lists: res.data.data ?? EMPTY });

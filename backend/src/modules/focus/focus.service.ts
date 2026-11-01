@@ -1,10 +1,11 @@
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { focusSessions, tasks } from "../../db/schema.js";
+import { focusPresence, focusSessions, tasks } from "../../db/schema.js";
 import { BadRequestError } from "../../utils/errors.js";
 import type { CreateFocusSessionInput } from "./focus.schema.js";
 import { goalIdOfTask } from "../goals/goals.service.js";
 import { addXp, XP } from "../../utils/xp.js";
+import { scheduleAchievementCheck } from "../achievements/achievement.service.js";
 
 
 export async function createFocusSessionService(
@@ -29,12 +30,14 @@ export async function createFocusSessionService(
   // Time spent on a task also counts toward that task's goal.
   const goalId = input.taskId ? await goalIdOfTask(userId, input.taskId) : null;
 
-  const [session] = await db
-    .insert(focusSessions)
-    .values({ userId, ...input, goalId })
-    .returning();
+  // Saving the session also ends "focusing now" (saves the app a second call).
+  const [[session]] = await Promise.all([
+    db.insert(focusSessions).values({ userId, ...input, goalId }).returning(),
+    db.delete(focusPresence).where(eq(focusPresence.userId, userId)),
+  ]);
 
   await addXp(userId, xpGained);
+  scheduleAchievementCheck(userId);
 
   return { session, xpGained };
 }

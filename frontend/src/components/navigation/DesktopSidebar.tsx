@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   Trophy,
   Swords,
+  UsersRound,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -55,6 +56,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ShieldCheck,
   Trophy,
   Swords,
+  UsersRound,
 };
 
 export function DesktopSidebar() {

@@ -16,6 +16,7 @@ import {
   declineFriendRequestService,
   joinByInviteService,
   listFriendsService,
+  nudgeFriendService,
   removeFriendService,
   sendFriendRequestService,
   unblockUserService,
@@ -73,7 +74,10 @@ router.post(
   validate({ body: joinInviteSchema }),
   asyncHandler(async (req, res) => {
     const data = await joinByInviteService(currentUserId(req), req.body.code);
-    sendResponse({ res, message: data.alreadyFriends ? "You're already friends." : "You're now friends!", data });
+    const message = data.alreadyFriends
+      ? "You're already friends."
+      : `You're now friends!${data.referralXp ? ` +${data.referralXp} XP for joining` : ""}`;
+    sendResponse({ res, message, data });
   }),
 );
 
@@ -110,6 +114,15 @@ friendAction("accept", acceptFriendRequestService, "You're now friends!");
 friendAction("decline", declineFriendRequestService, "Request declined.");
 friendAction("block", blockUserService, "Blocked.");
 friendAction("unblock", unblockUserService, "Unblocked.");
+
+router.post(
+  "/friends/:userId/nudge",
+  socialLimiter,
+  asyncHandler(async (req, res) => {
+    const data = await nudgeFriendService(currentUserId(req), idParam(req, "userId"));
+    sendResponse({ res, message: data.message, data });
+  }),
+);
 
 router.delete(
   "/friends/:userId",

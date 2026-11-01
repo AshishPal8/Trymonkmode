@@ -34,7 +34,7 @@ export function SegmentedTabs<T extends string>({ value, onChange, options, size
             aria-selected={isActive}
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex items-center gap-1.5 rounded-xl font-semibold transition cursor-pointer",
+              "flex items-center gap-1.5 rounded-xl font-semibold whitespace-nowrap transition cursor-pointer",
               size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs",
               isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}

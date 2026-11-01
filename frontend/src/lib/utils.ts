@@ -201,6 +201,9 @@ export function serverIdFrom(res: unknown): string | null {
   return id !== undefined && id !== null ? String(id) : null;
 }
 
+/** Data loaded within the last `maxAgeMs` doesn't need loading again. */
+export const isFresh = (loadedAt: number, maxAgeMs = 60_000) => Date.now() - loadedAt < maxAgeMs;
+
 /** Returns a copy of `list` with the item at `from` moved to `to`. */
 export function moveItem<T>(list: T[], from: number, to: number): T[] {
   const next = [...list];
@@ -220,4 +223,10 @@ export function formatMinutes(min: number): string {
 /** Compact form for small spaces: 45 -> "45m", 225 -> "3.8h". */
 export function formatMinutesShort(min: number): string {
   return min < 60 ? `${min}m` : `${Number((min / 60).toFixed(1))}h`;
+}
+
+/** "12m left" from an ISO end time. */
+export function minutesLeft(endsAt: string): string {
+  const mins = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 60_000));
+  return `${mins}m left`;
 }

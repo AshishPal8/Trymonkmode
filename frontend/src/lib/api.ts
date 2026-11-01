@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
-import type { LeaderboardSort, NewChallengeInput } from "./types";
+import type { AchievementInput, LeaderboardSort, NewChallengeInput, NewGroupInput } from "./types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -333,6 +333,7 @@ export const socialApi = {
   remove: (userId: number) => api.delete(`/social/friends/${userId}`),
   block: (userId: number) => api.post(`/social/friends/${userId}/block`),
   unblock: (userId: number) => api.post(`/social/friends/${userId}/unblock`),
+  nudge: (userId: number) => api.post(`/social/friends/${userId}/nudge`),
   getLeaderboard: (params: { sort: LeaderboardSort; page: number; limit?: number }) =>
     api.get("/social/leaderboard", { params }),
 };
@@ -345,6 +346,31 @@ export const challengesApi = {
   leave: (id: number) => api.post(`/challenges/${id}/leave`),
   checkIn: (id: number) => api.post(`/challenges/${id}/check-in`),
   remove: (id: number) => api.delete(`/challenges/${id}`),
+};
+
+export const achievementsApi = {
+  mine: () => api.get("/achievements"),
+  /** `check` runs the full unlock check first (only needed when the app opens). */
+  unseen: (check = false) => api.get("/achievements/unseen", { params: check ? { check: 1 } : undefined }),
+  markSeen: (achievementIds: number[]) => api.post("/achievements/seen", { achievementIds }),
+  // Admins
+  adminList: () => api.get("/achievements/admin"),
+  create: (input: AchievementInput) => api.post("/achievements/admin", input),
+  update: (id: number, input: Partial<AchievementInput>) => api.patch(`/achievements/admin/${id}`, input),
+  remove: (id: number) => api.delete(`/achievements/admin/${id}`),
+};
+
+export const groupsApi = {
+  list: () => api.get("/groups"),
+  get: (id: number) => api.get(`/groups/${id}`),
+  create: (input: NewGroupInput) => api.post("/groups", input),
+  update: (id: number, input: Partial<Omit<NewGroupInput, "memberIds">>) => api.patch(`/groups/${id}`, input),
+  remove: (id: number) => api.delete(`/groups/${id}`),
+  addMembers: (id: number, userIds: number[]) => api.post(`/groups/${id}/members`, { userIds }),
+  removeMember: (id: number, userId: number) => api.delete(`/groups/${id}/members/${userId}`),
+  live: (id: number) => api.get(`/groups/${id}/live`),
+  startRoom: (id: number, durationMinutes: number) => api.post(`/groups/${id}/rooms`, { durationMinutes }),
+  joinRoom: (id: number, roomId: number) => api.post(`/groups/${id}/rooms/${roomId}/join`),
 };
 
 export const focusApi = {
@@ -360,6 +386,9 @@ export const focusApi = {
     startedAt: string;
     endedAt: string;
   }) => api.post("/focus/sessions", input),
+  /** "Focusing now" for friends and groups. `endsAt` null = stopwatch. */
+  setPresence: (endsAt: string | null) => api.put("/focus/presence", { endsAt }),
+  clearPresence: () => api.delete("/focus/presence"),
 };
 
 export const notificationsApi = {

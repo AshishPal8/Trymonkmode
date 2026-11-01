@@ -1,8 +1,10 @@
-import { and, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, or, sql } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { friendships, focusSessions, users, userSettings } from "../../db/schema.js";
+import { friendships, focusSessions, focusPresence, friendNudges, users, userSettings } from "../../db/schema.js";
 import { BadRequestError, NotFoundError } from "../../utils/errors.js";
-import { daysAgo } from "../../utils/date.js";
+import { DAY_MS, daysAgo } from "../../utils/date.js";
+import { addXp, XP } from "../../utils/xp.js";
+import { scheduleAchievementCheck } from "../achievements/achievement.service.js";
 import { sendPushNotificationToUser } from "../notifications/notifications.service.js";
 import { MAX_FRIENDS, MAX_PENDING_SENT, normalizeUsername, orderedPair, otherUserId } from "./social.rules.js";
 import { publicUserColumns, type PublicUser } from "./social.profile.service.js";
@@ -73,14 +75,25 @@ async function makeFriends(me: number, other: number, existing: FriendshipRow | 
 
 /** Friends' streak, XP and last-7-days focus, only when they share their stats. */
 async function loadFriendStats(friendIds: number[]) {
-  const stats = new Map<number, { streak: number; xp: number; level: number; weekFocusMinutes: number }>();
+  const stats = new Map<
+    number,
+    { streak: number; xp: number; level: number; weekFocusMinutes: number; focusingUntil: Date | null }
+  >();
   if (friendIds.length === 0) return stats;
 
   const [profiles, focus] = await Promise.all([
     db
-      .select({ id: users.id, streak: users.streak, xp: users.xp, level: users.level, visibility: userSettings.statsVisibility })
+      .select({
+        id: users.id,
+        streak: users.streak,
+        xp: users.xp,
+        level: users.level,
+        visibility: userSettings.statsVisibility,
+        focusingUntil: focusPresence.endsAt,
+      })
       .from(users)
       .leftJoin(userSettings, eq(userSettings.userId, users.id))
+      .leftJoin(focusPresence, and(eq(focusPresence.userId, users.id), gt(focusPresence.endsAt, new Date())))
       .where(inArray(users.id, friendIds)),
     db
       .select({ userId: focusSessions.userId, minutes: sql<number>`coalesce(sum(${focusSessions.durationMinutes}), 0)::int` })
@@ -92,7 +105,13 @@ async function loadFriendStats(friendIds: number[]) {
   const focusByUser = new Map(focus.map((f) => [f.userId, f.minutes]));
   for (const p of profiles) {
     if (p.visibility === "private") continue;
-    stats.set(p.id, { streak: p.streak, xp: p.xp, level: p.level, weekFocusMinutes: focusByUser.get(p.id) ?? 0 });
+    stats.set(p.id, {
+      streak: p.streak,
+      xp: p.xp,
+      level: p.level,
+      weekFocusMinutes: focusByUser.get(p.id) ?? 0,
+      focusingUntil: p.focusingUntil,
+    });
   }
   return stats;
 }
@@ -168,8 +187,13 @@ export async function joinByInviteService(me: number, code: string) {
   await makeFriends(me, inviter.id, existing);
 
   const joiner = await getPublicUser(eq(users.id, me));
-  notify(inviter.id, "🎉 Your invite worked", `${joiner ? displayName(joiner) : "A friend"} joined you on TryMonkMode.`);
-  return { status: "accepted" as const, user: inviter, alreadyFriends: false };
+  const referred = await recordReferral(me, inviter.id);
+  notify(
+    inviter.id,
+    "🎉 Your invite worked",
+    `${joiner ? displayName(joiner) : "A friend"} joined you on TryMonkMode.${referred ? ` +${XP.referral} XP` : ""}`,
+  );
+  return { status: "accepted" as const, user: inviter, alreadyFriends: false, referralXp: referred ? XP.referral : 0 };
 }
 
 export async function acceptFriendRequestService(me: number, otherId: number) {
@@ -198,6 +222,67 @@ export async function removeFriendService(me: number, otherId: number) {
   if (!canRemove) throw new NotFoundError("Nothing to remove.");
   await db.delete(friendships).where(eq(friendships.id, row.id));
   return { message: row.status === "accepted" ? "Friend removed." : "Request cancelled." };
+}
+
+// ─── Referral ────────────────────────────────────────────────────────────────
+
+/** A new account counts as referred only if it joins within this long of signing up. */
+const REFERRAL_WINDOW_MS = 3 * DAY_MS;
+
+/**
+ * Rewards both people when a brand-new account joins through an invite link.
+ * One atomic update, so it can only happen once per account. True if rewarded.
+ */
+async function recordReferral(newUserId: number, inviterId: number): Promise<boolean> {
+  const updated = await db
+    .update(users)
+    .set({ referredBy: inviterId })
+    .where(
+      and(
+        eq(users.id, newUserId),
+        sql`${users.referredBy} is null`,
+        gt(users.createdAt, new Date(Date.now() - REFERRAL_WINDOW_MS)),
+      ),
+    )
+    .returning({ id: users.id });
+  if (updated.length === 0) return false;
+
+  await Promise.all([addXp(newUserId, XP.referral), addXp(inviterId, XP.referral)]);
+  scheduleAchievementCheck(inviterId); // "Recruiter" badges
+  return true;
+}
+
+// ─── Nudge ───────────────────────────────────────────────────────────────────
+
+const NUDGE_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+
+/** "Time to focus!" push to a friend; once per friend every 12 hours. */
+export async function nudgeFriendService(me: number, otherId: number) {
+  const [pair, [last], sender] = await Promise.all([
+    findPair(me, otherId),
+    db
+      .select({ createdAt: friendNudges.createdAt })
+      .from(friendNudges)
+      .where(and(eq(friendNudges.fromUserId, me), eq(friendNudges.toUserId, otherId)))
+      .orderBy(desc(friendNudges.createdAt))
+      .limit(1),
+    getPublicUser(eq(users.id, me)),
+  ]);
+  if (pair?.status !== "accepted") throw new NotFoundError("You can only nudge friends.");
+
+  const waitMs = last ? last.createdAt.getTime() + NUDGE_COOLDOWN_MS - Date.now() : 0;
+  if (waitMs > 0) {
+    throw new BadRequestError(`You nudged them recently. Try again in ${Math.ceil(waitMs / 3_600_000)}h.`);
+  }
+
+  await db.insert(friendNudges).values({ fromUserId: me, toUserId: otherId });
+  sendPushNotificationToUser(otherId, {
+    title: `👋 ${sender ? displayName(sender) : "A friend"} nudged you`,
+    body: "Time for a focus session? Keep the streak alive.",
+    type: "social",
+    data: { moduleId: "pomodoro" },
+  }).catch(() => {});
+  return { message: "Nudge sent 👋" };
 }
 
 // ─── Blocking ────────────────────────────────────────────────────────────────

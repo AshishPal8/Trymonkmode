@@ -23,6 +23,7 @@ import {
   Smartphone,
   Info,
   ChevronRight,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { triggerCelebrationConfetti } from "@/lib/utils";
@@ -32,6 +33,8 @@ import { Input } from "@/components/ui/input";
 import { ImageUpload } from "@/components/common/ImageUpload";
 import { toast } from "@/components/ui/toast";
 import { requestAndRegisterFCMToken } from "@/lib/firebase";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { BadgeCollection } from "@/modules/achievements/BadgeCollection";
 
 const OS_INSTRUCTIONS = [
   {
@@ -105,7 +108,7 @@ export function UserProfileModal() {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<
-    "profile" | "preferences" | "favorites"
+    "profile" | "preferences" | "favorites" | "badges"
   >("profile");
   const [selectedOs, setSelectedOs] = useState<string>("mac");
   const [name, setName] = useState(user.name);
@@ -247,29 +250,17 @@ export function UserProfileModal() {
       maxWidth="xl"
     >
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1.5 pt-1 pb-2 border-b border-border/60">
-        {[
-          { id: "profile", label: "Profile Details", icon: User },
-          { id: "preferences", label: "Preferences & Theme", icon: Sparkles },
-          { id: "favorites", label: "Sidebar Favorites", icon: Star },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                isActive
-                  ? "bg-[#0052FF] text-white shadow-sm font-bold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      <div className="pt-1 pb-2 border-b border-border/60 overflow-x-auto">
+        <SegmentedTabs
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: "profile", label: "Profile", icon: <User className="w-3.5 h-3.5" /> },
+            { value: "preferences", label: "Preferences", icon: <Sparkles className="w-3.5 h-3.5" /> },
+            { value: "favorites", label: "Favorites", icon: <Star className="w-3.5 h-3.5" /> },
+            { value: "badges", label: "Badges", icon: <Award className="w-3.5 h-3.5" /> },
+          ]}
+        />
       </div>
 
       {/* Modal Body Form */}
@@ -663,6 +654,8 @@ export function UserProfileModal() {
           </div>
         )}
 
+        {activeTab === "badges" && <BadgeCollection />}
+
         {/* TAB 3: SIDEBAR FAVORITES (Using Unified Blue Theme) */}
         {activeTab === "favorites" && (
           <div className="space-y-3">
@@ -726,6 +719,7 @@ export function UserProfileModal() {
               Close
             </button>
 
+            {activeTab !== "badges" && (
             <Button
               type="submit"
               disabled={isSaving}
@@ -740,6 +734,7 @@ export function UserProfileModal() {
                 </>
               )}
             </Button>
+            )}
           </div>
         </div>
       </form>

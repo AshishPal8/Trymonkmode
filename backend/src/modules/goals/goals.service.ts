@@ -10,6 +10,7 @@ import type {
   UpdateMilestoneInput,
   ReorderMilestonesInput,
 } from "./goals.schema.js";
+import { scheduleAchievementCheck } from "../achievements/achievement.service.js";
 
 type GoalRow = typeof goals.$inferSelect;
 type MilestoneRow = typeof goalMilestones.$inferSelect;
@@ -213,6 +214,7 @@ export async function updateGoalService(userId: number, goalId: number, input: U
   // Finishing a goal is worth celebrating (once).
   if (input.status === "done" && before.status !== "done") {
     await addXp(userId, XP.goalFinished);
+    scheduleAchievementCheck(userId);
   }
   return getGoalDetailService(userId, goalId);
 }

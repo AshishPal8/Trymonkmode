@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../../config/db.js";
 import { users, userSettings } from "../../db/schema.js";
 import { BadRequestError, NotFoundError } from "../../utils/errors.js";
@@ -97,6 +97,8 @@ export async function getSocialProfileService(userId: number) {
       username: users.username,
       inviteCode: users.inviteCode,
       statsVisibility: userSettings.statsVisibility,
+      // "users"."id" is the outer row (the inner table is aliased r).
+      referralCount: sql<number>`(select count(*) from users r where r.referred_by = "users"."id")::int`,
     })
     .from(users)
     .leftJoin(userSettings, eq(userSettings.userId, users.id))
@@ -108,6 +110,7 @@ export async function getSocialProfileService(userId: number) {
     username: row.username ?? (await ensureUsername(userId)),
     inviteCode: row.inviteCode ?? (await saveNewInviteCode(userId)),
     statsVisibility: row.statsVisibility ?? "public",
+    referralCount: row.referralCount,
   };
 }
 

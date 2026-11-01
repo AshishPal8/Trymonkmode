@@ -18,6 +18,7 @@ export type ActiveModuleId =
   | "analytics"
   | "leaderboard"
   | "challenges"
+  | "groups"
   | "admin";
 
 export interface AppPageItem {
@@ -370,6 +371,8 @@ export interface FriendStats {
   xp: number;
   level: number;
   weekFocusMinutes: number;
+  /** Set while they're in a focus session (ISO time it ends). */
+  focusingUntil?: string | null;
 }
 
 export interface Friend extends PublicUser {
@@ -392,6 +395,8 @@ export interface SocialProfile {
   username: string | null;
   inviteCode: string;
   statsVisibility: StatsVisibility;
+  /** Friends who signed up through my invite link. */
+  referralCount: number;
 }
 
 export type LeaderboardSort = "xp" | "streak" | "focus";
@@ -437,7 +442,6 @@ export interface Challenge {
   endDate: string;
   phase: ChallengePhase;
   dayNumber: number;
-  today: string;
   memberCount: number;
 }
 
@@ -471,4 +475,103 @@ export interface NewChallengeInput {
   dailyTarget: number;
   durationDays: number;
   startDate: string;
+}
+
+// ─── Achievements ────────────────────────────────────────────────────────────
+
+export type AchievementRule =
+  | "streak_days"
+  | "focus_hours"
+  | "tasks_completed"
+  | "goals_finished"
+  | "habit_checkins"
+  | "challenges_completed";
+
+export interface AchievementDefinition {
+  id: number;
+  key: string;
+  title: string;
+  description: string;
+  emoji: string;
+  rule: AchievementRule;
+  threshold: number;
+  xpReward: number;
+  isActive: boolean;
+  orderIndex: number;
+}
+
+export interface MyAchievement extends AchievementDefinition {
+  unit: string;
+  unlockedAt: string | null;
+  current: number;
+  progress: number;
+}
+
+export interface MyAchievements {
+  items: MyAchievement[];
+  unlockedCount: number;
+  total: number;
+}
+
+export type UnlockedBadge = Pick<AchievementDefinition, "id" | "title" | "description" | "emoji" | "xpReward">;
+
+export interface AdminAchievement extends AchievementDefinition {
+  unlockCount: number;
+}
+
+export type AchievementInput = Omit<AchievementDefinition, "id">;
+
+// ─── Groups & focus together ─────────────────────────────────────────────────
+
+export interface GroupSummary {
+  id: number;
+  name: string;
+  emoji: string;
+  weeklyGoalMinutes: number;
+  isOwner: boolean;
+  memberCount?: number;
+  weekMinutes: number;
+  weekProgress: number;
+  streakWeeks: number;
+}
+
+export interface GroupMember extends PublicUser {
+  isOwner: boolean;
+  streak: number;
+  weekMinutes: number;
+}
+
+export interface GroupFeedItem {
+  kind: "focus" | "badge" | "joined";
+  userId: number;
+  minutes: number | null;
+  title: string | null;
+  emoji: string | null;
+  at: string;
+}
+
+export interface GroupDetail extends GroupSummary {
+  /** The signed-in user's id. */
+  myId: number;
+  members: GroupMember[];
+  feed: GroupFeedItem[];
+}
+
+export interface FocusRoom {
+  id: number;
+  hostId: number;
+  durationMinutes: number;
+  endsAt: string;
+}
+
+export interface GroupLive {
+  focusing: { userId: number; endsAt: string; roomId: number | null }[];
+  room: FocusRoom | null;
+}
+
+export interface NewGroupInput {
+  name: string;
+  emoji: string;
+  weeklyGoalMinutes: number;
+  memberIds: number[];
 }

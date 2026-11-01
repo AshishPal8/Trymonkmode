@@ -35,6 +35,8 @@ import { focusRoutes } from "./modules/focus/focus.route.js";
 import { streakRoutes } from "./modules/streak/streak.route.js";
 import { socialRoutes } from "./modules/social/social.route.js";
 import { challengeRoutes } from "./modules/challenges/challenge.route.js";
+import { achievementRoutes } from "./modules/achievements/achievement.route.js";
+import { groupRoutes } from "./modules/groups/group.route.js";
 
 export const app = express();
 
@@ -118,6 +120,8 @@ app.use("/api/v1/focus", focusRoutes);
 app.use("/api/v1/streak", streakRoutes);
 app.use("/api/v1/social", socialRoutes);
 app.use("/api/v1/challenges", challengeRoutes);
+app.use("/api/v1/achievements", achievementRoutes);
+app.use("/api/v1/groups", groupRoutes);
 
 app.use((_req, _res, next) => {
   next(new NotFoundError("The requested endpoint or resource does not exist."));

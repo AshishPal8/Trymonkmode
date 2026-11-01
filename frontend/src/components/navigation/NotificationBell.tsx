@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const OPENABLE_MODULES = new Set(["tasks", "calendar", "habits", "dashboard", "goals", "journal", "pomodoro", "leaderboard", "challenges"]);
+const OPENABLE_MODULES = new Set(["tasks", "calendar", "habits", "dashboard", "goals", "journal", "pomodoro", "leaderboard", "challenges", "groups"]);
 // Refresh the badge when the tab regains focus, at most this often.
 const FOCUS_REFRESH_MS = 60 * 1000;
 

@@ -13,7 +13,7 @@ export const XP = {
   milestoneDone: 25,
   focusPerMinute: 2,
   weeklyConsistency: 100,
-  friendJoined: 50,
+  referral: 100, // both people, when a brand-new account joins through an invite link
 } as const;
 
 /** Adds XP to a user in one atomic update. */

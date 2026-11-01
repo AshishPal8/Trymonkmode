@@ -1,9 +1,6 @@
-import { and, eq, gte } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../../config/db.js";
 import {
-  tasks,
-  habits,
-  focusSessions,
   users,
   userSettings,
   userPlans,
@@ -11,10 +8,11 @@ import {
   consistencyBonuses,
 } from "../../db/schema.js";
 import { BadRequestError } from "../../utils/errors.js";
-import { daysAgo, dayInTimezone, userTimezone } from "../../utils/date.js";
+import { daysAgo, dayInTimezone, DEFAULT_TIMEZONE, userTimezone } from "../../utils/date.js";
 import { addXp, XP } from "../../utils/xp.js";
 import { addToInbox } from "../notifications/notifications.service.js";
 import { computeStreak, type StreakResult } from "./streak.logic.js";
+import { scheduleAchievementCheck } from "../achievements/achievement.service.js";
 
 /** Free users get 1 repair a month, paid plans get 3. */
 const REPAIRS_PER_MONTH = { free: 1, paid: 3 };
@@ -26,11 +24,17 @@ type Repair = { repairedDate: string; createdAt: Date };
 
 // ─── Loading ─────────────────────────────────────────────────────────────────
 
-/** Everything the streak needs, in 5 parallel queries. */
+/**
+ * Everything the streak needs, in 3 parallel queries. The database returns
+ * only the distinct days with activity (in the user's timezone), not every
+ * task / habit / focus row.
+ */
 async function loadStreakData(userId: number) {
   const since = daysAgo(LOOKBACK_DAYS);
+  // The user's timezone, worked out inside SQL so all three queries can run at once.
+  const tz = sql`coalesce(nullif((select timezone from user_settings where user_id = ${userId}), 'UTC'), ${DEFAULT_TIMEZONE})`;
 
-  const [[profile], doneTasks, userHabits, sessions, repairs] = await Promise.all([
+  const [[profile], activeDayRows, repairs] = await Promise.all([
     db
       .select({
         timezone: userSettings.timezone,
@@ -43,31 +47,25 @@ async function loadStreakData(userId: number) {
       .leftJoin(userPlans, eq(userPlans.userId, users.id))
       .where(eq(users.id, userId))
       .limit(1),
-    db
-      .select({ completedAt: tasks.completedAt, updatedAt: tasks.updatedAt })
-      .from(tasks)
-      .where(and(eq(tasks.userId, userId), eq(tasks.completed, true), gte(tasks.updatedAt, since))),
-    db.select({ completedDates: habits.completedDates }).from(habits).where(eq(habits.userId, userId)),
-    db
-      .select({ endedAt: focusSessions.endedAt })
-      .from(focusSessions)
-      .where(and(eq(focusSessions.userId, userId), gte(focusSessions.endedAt, since))),
+    db.execute<{ day: string }>(sql`
+      select (coalesce(completed_at, updated_at) at time zone ${tz})::date::text as day
+      from tasks where user_id = ${userId} and completed and coalesce(completed_at, updated_at) >= ${since}
+      union
+      select (ended_at at time zone ${tz})::date::text
+      from focus_sessions where user_id = ${userId} and ended_at >= ${since}
+      union
+      select d.day
+      from habits h, jsonb_array_elements_text(h.completed_dates) as d(day)
+      where h.user_id = ${userId}`),
     db
       .select({ repairedDate: streakRepairs.repairedDate, createdAt: streakRepairs.createdAt })
       .from(streakRepairs)
       .where(eq(streakRepairs.userId, userId)),
   ]);
 
-  const tz = userTimezone(profile?.timezone);
-  const activeDays = new Set<string>();
-  // completedAt when we have it; older tasks only have updatedAt.
-  for (const t of doneTasks) activeDays.add(dayInTimezone(t.completedAt || t.updatedAt, tz));
-  for (const h of userHabits) for (const d of (h.completedDates as string[]) || []) activeDays.add(d);
-  for (const s of sessions) activeDays.add(dayInTimezone(s.endedAt, tz));
-
   return {
-    tz,
-    activeDays,
+    tz: userTimezone(profile?.timezone),
+    activeDays: new Set(activeDayRows.rows.map((r) => r.day)),
     repairs,
     restDays: Array.isArray(profile?.restDays) ? (profile.restDays as number[]) : [],
     isPaid: !!profile?.planTier && profile.planTier !== "free",
@@ -126,6 +124,7 @@ export async function getStreakStatusService(userId: number) {
   const repairsLeft = repairsLeftThisMonth(data.repairs, repairsPerMonth, today, data.tz);
 
   syncStoredStreak(userId, data.storedStreak, streak.current);
+  scheduleAchievementCheck(userId);
   const bonusJustEarned = await grantWeeklyBonusOnce(userId, streak);
 
   return {

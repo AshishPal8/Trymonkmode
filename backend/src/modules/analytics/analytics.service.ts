@@ -1,4 +1,4 @@
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { db } from "../../config/db.js";
 import { getStreakStatusService } from "../streak/streak.service.js";
 import {
@@ -8,7 +8,7 @@ import {
   userSettings,
   focusSessions,
 } from "../../db/schema.js";
-import { dayInTimezone, hourInTimezone, userTimezone } from "../../utils/date.js";
+import { daysAgo, dayInTimezone, hourInTimezone, userTimezone } from "../../utils/date.js";
 
 export interface DailyVelocity {
   day: string; // 'Mon', 'Tue', ...
@@ -69,21 +69,34 @@ const CATEGORY_COLORS = [
 export async function getAnalyticsService(
   userId: number,
 ): Promise<AnalyticsSummary> {
-  // All independent, so run them together.
+  // All independent, so run them together. Only the columns used below are read.
   const [[user], [settings], userTasks, userHabits, recentFocus, streakStatus] =
     await Promise.all([
-      db.select().from(users).where(eq(users.id, userId)).limit(1),
+      db.select({ xp: users.xp, level: users.level }).from(users).where(eq(users.id, userId)).limit(1),
       db
-        .select()
+        .select({ timezone: userSettings.timezone })
         .from(userSettings)
         .where(eq(userSettings.userId, userId))
         .limit(1),
       db
-        .select()
+        .select({
+          completed: tasks.completed,
+          completedAt: tasks.completedAt,
+          updatedAt: tasks.updatedAt,
+          tags: tasks.tags,
+          quadrant: tasks.quadrant,
+        })
         .from(tasks)
-        .where(eq(tasks.userId, userId))
-        .orderBy(desc(tasks.createdAt)),
-      db.select().from(habits).where(eq(habits.userId, userId)),
+        .where(eq(tasks.userId, userId)),
+      db
+        .select({
+          completedDates: habits.completedDates,
+          targetDays: habits.targetDays,
+          createdAt: habits.createdAt,
+          category: habits.category,
+        })
+        .from(habits)
+        .where(eq(habits.userId, userId)),
       db
         .select({
           minutes: focusSessions.durationMinutes,
@@ -91,15 +104,13 @@ export async function getAnalyticsService(
           endedAt: focusSessions.endedAt,
         })
         .from(focusSessions)
-        .where(
-          and(
-            eq(focusSessions.userId, userId),
-            // A year back, for the streak; the weekly chart only uses the last 7 days.
-            gte(focusSessions.endedAt, new Date(Date.now() - 366 * 86400000)),
-          ),
-        ),
+        // 30 days: the best-time-of-day window (the weekly chart uses the last 7).
+        .where(and(eq(focusSessions.userId, userId), gte(focusSessions.endedAt, daysAgo(31)))),
       getStreakStatusService(userId),
     ]);
+
+  /** When a task was finished (older tasks only have updatedAt). */
+  const doneAt = (t: (typeof userTasks)[number]) => t.completedAt ?? t.updatedAt;
 
   // Days are counted in the user's timezone, not the server's.
   const tz = userTimezone(settings?.timezone);
@@ -135,7 +146,7 @@ export async function getAnalyticsService(
       const tasksDoneOnDay = userTasks.filter(
         (t) =>
           t.completed &&
-          localDateStr(new Date(t.updatedAt || t.createdAt)) === dateStr,
+          localDateStr(doneAt(t)) === dateStr,
       ).length;
 
       let habitsDoneOnDay = 0;
@@ -278,9 +289,8 @@ export async function getAnalyticsService(
     bucketScore.set(b.key, (bucketScore.get(b.key) || 0) + f.minutes);
   }
   for (const t of userTasks) {
-    const doneAt = new Date(t.updatedAt || t.createdAt);
-    if (!t.completed || doneAt.getTime() < monthAgo) continue;
-    const b = bucketOf(localHour(doneAt));
+    if (!t.completed || doneAt(t).getTime() < monthAgo) continue;
+    const b = bucketOf(localHour(doneAt(t)));
     bucketScore.set(b.key, (bucketScore.get(b.key) || 0) + 15); // a finished task ≈ 15 focused minutes
   }
   const best = [...bucketScore.entries()].sort((a, b) => b[1] - a[1])[0];

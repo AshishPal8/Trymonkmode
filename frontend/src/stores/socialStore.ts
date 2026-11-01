@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { FriendsData, SocialProfile, StatsVisibility } from "@/lib/types";
 import { apiErrorMessage, socialApi } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
+import { isFresh } from "@/lib/utils";
 
 const EMPTY: FriendsData = { friends: [], incoming: [], outgoing: [], blocked: [] };
 
@@ -10,7 +11,9 @@ export interface SocialStoreState {
   friendsData: FriendsData;
   isLoading: boolean;
 
-  load: () => Promise<void>;
+  loadedAt: number;
+  /** Profile + friends. Skipped if loaded in the last minute, unless `force`. */
+  load: (force?: boolean) => Promise<void>;
   refreshFriends: () => Promise<void>;
   setStatsVisibility: (visibility: StatsVisibility) => Promise<void>;
   resetInvite: () => Promise<void>;
@@ -55,9 +58,11 @@ export const useSocialStore = create<SocialStoreState>()((set, get) => {
     profile: null,
     friendsData: EMPTY,
     isLoading: false,
+    loadedAt: 0,
 
-    load: async () => {
-      set({ isLoading: true });
+    load: async (force = false) => {
+      if (!force && isFresh(get().loadedAt)) return;
+      set({ isLoading: true, loadedAt: Date.now() });
       try {
         const [profile, friends] = await Promise.all([socialApi.getProfile(), socialApi.getFriends()]);
         set({ profile: profile.data.data, friendsData: friends.data.data ?? EMPTY });

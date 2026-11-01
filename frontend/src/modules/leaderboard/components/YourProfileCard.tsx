@@ -69,7 +69,12 @@ export function YourProfileCard() {
             <RefreshCw className="w-3.5 h-3.5" /> New link
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">Anyone who opens it becomes your friend.</p>
+        <p className="text-[11px] text-muted-foreground">
+          Anyone who opens it becomes your friend. New sign-ups give you both +100 XP.
+          {profile.referralCount > 0 && (
+            <span className="font-semibold text-primary"> {profile.referralCount} joined so far 🎉</span>
+          )}
+        </p>
       </div>
 
       <button

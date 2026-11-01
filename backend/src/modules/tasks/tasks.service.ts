@@ -9,6 +9,7 @@ import {
 } from "../cron/reminders.cron.js";
 import { resolveGoalLink } from "../goals/goals.service.js";
 import { addXp, XP } from "../../utils/xp.js";
+import { scheduleAchievementCheck } from "../achievements/achievement.service.js";
 
 export async function getTasksService(
   userId: number,
@@ -148,6 +149,7 @@ export async function toggleTaskService(userId: number, taskId: number) {
   if (nextCompleted) {
     cancelTaskReminder(taskId);
     await addXp(userId, XP.taskCompleted);
+    scheduleAchievementCheck(userId);
   } else if (updated.dueTime) {
     scheduleTaskReminder(updated).catch(() => {});
   }

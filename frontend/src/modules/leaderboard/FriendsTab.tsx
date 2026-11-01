@@ -11,6 +11,8 @@ import { YourProfileCard } from "./components/YourProfileCard";
 import { AddFriendForm } from "./components/AddFriendForm";
 import { FriendCard } from "./components/FriendCard";
 import { PersonRow } from "./components/PersonRow";
+import { apiErrorMessage, socialApi } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 
 const SMALL_BUTTON = "h-8 rounded-xl text-xs px-3";
 
@@ -35,6 +37,15 @@ export function FriendsTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const nudge = async (userId: number) => {
+    try {
+      const res = await socialApi.nudge(userId);
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Couldn't send the nudge."));
+    }
+  };
 
   const confirmRemove = async (user: PublicUser) => {
     const ok = await confirm({
@@ -92,7 +103,13 @@ export function FriendsTab() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {friends.map((f) => (
-                  <FriendCard key={f.id} friend={f} onRemove={() => confirmRemove(f)} onBlock={() => confirmBlock(f)} />
+                  <FriendCard
+                    key={f.id}
+                    friend={f}
+                    onRemove={() => confirmRemove(f)}
+                    onBlock={() => confirmBlock(f)}
+                    onNudge={() => nudge(f.id)}
+                  />
                 ))}
               </div>
             )}

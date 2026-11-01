@@ -143,6 +143,15 @@ export const DEFAULT_PAGES: AppPageItem[] = [
     icon: "Swords",
     orderIndex: 13,
   },
+  {
+    id: 14,
+    key: "groups",
+    name: "Groups",
+    path: "/groups",
+    hub: "Community",
+    icon: "UsersRound",
+    orderIndex: 14,
+  },
 ];
 
 export interface UIStoreState {

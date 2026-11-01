@@ -8,6 +8,7 @@ import {
   cancelHabitReminder,
 } from "../cron/reminders.cron.js";
 import { addXp, XP } from "../../utils/xp.js";
+import { scheduleAchievementCheck } from "../achievements/achievement.service.js";
 
 export async function getHabitsService(userId: number) {
   return db
@@ -117,6 +118,7 @@ export async function toggleCheckInService(
 
   if (!isCompleted) {
     await addXp(userId, XP.habitCheckIn);
+    scheduleAchievementCheck(userId);
   }
 
   return {

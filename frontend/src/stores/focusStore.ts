@@ -89,9 +89,11 @@ export interface FocusStoreState {
   logFocusSession: (session: Omit<FocusSession, "id">) => void;
   /** Saves the current focus session (actual focused time, pauses excluded)
    *  if at least 1 minute was focused. Safe to call when nothing is running. */
-  saveCurrentFocus: (completed: boolean) => void;
+  saveCurrentFocus: (completed: boolean) => boolean;
   /** Logs a session locally and saves it on the server. Skips anything under 1 minute. */
-  saveSession: (session: SessionToSave) => void;
+  saveSession: (session: SessionToSave) => boolean;
+  /** Joins a group's shared timer: a focus session that ends at `endsAtMs`. */
+  startRoomTimer: (endsAtMs: number) => void;
 
   // Analytics Helpers
   getRemainingSeconds: () => number;
@@ -169,6 +171,26 @@ interface SessionToSave {
 /** Only real (server) task ids can be linked; temporary ones start with a letter. */
 const serverTaskId = (id: string | null) => (id && /^\d+$/.test(id) ? Number(id) : undefined);
 
+// ─── "Focusing now" (shown to friends and groups) ────────────────────────────
+
+/** What we last told the server: an end time, "open" (stopwatch), or null (not focusing). */
+let lastPresence: string | null = null;
+
+/**
+ * Tells the server whether I'm focusing. Sends only when the state actually
+ * changes. When a session was just saved, the server already cleared it.
+ */
+function syncPresence(endsAt: number | "open" | null, clearedByServer = false) {
+  const next = endsAt === null ? null : String(endsAt);
+  if (next === lastPresence) return;
+  lastPresence = next;
+  if (endsAt === null) {
+    if (!clearedByServer) focusApi.clearPresence().catch(() => {});
+  } else {
+    focusApi.setPresence(endsAt === "open" ? null : new Date(endsAt).toISOString()).catch(() => {});
+  }
+}
+
 /** After a session is saved: refresh the dashboard numbers and the task's goal. */
 function refreshAfterSave(taskId?: number) {
   useAnalyticsStore.getState().fetchAnalytics();
@@ -213,7 +235,7 @@ export const useFocusStore = create<FocusStoreState>()(
       setMode: (newMode) => {
         const { durationMins } = get();
         // Switching tabs mid-session used to throw the session away.
-        get().saveCurrentFocus(false);
+        syncPresence(null, get().saveCurrentFocus(false));
         set({
           mode: newMode,
           isRunning: false,
@@ -268,6 +290,7 @@ export const useFocusStore = create<FocusStoreState>()(
           sessionStartTime: sessionStartTime || Date.now(),
           ...(isNewSession ? { sessionTotalSecs: secondsToRun } : {}),
         });
+        syncPresence(mode === 'pomodoro' ? targetEndTime : null);
       },
 
       pauseTimer: () => {
@@ -280,13 +303,15 @@ export const useFocusStore = create<FocusStoreState>()(
           targetEndTime: null,
           pausedTimeLeft: remaining,
         });
+        syncPresence(null);
       },
 
       resetTimer: (savePartial = true) => {
         const { mode, durationMins } = get();
 
         // Save what was focused, even if the timer was paused before reset.
-        if (savePartial) get().saveCurrentFocus(false);
+        const saved = savePartial && get().saveCurrentFocus(false);
+        syncPresence(null, saved);
 
         set({
           isRunning: false,
@@ -304,7 +329,7 @@ export const useFocusStore = create<FocusStoreState>()(
         //    also calls this, and used to log the full length even if you
         //    stopped at 15 minutes.
         const ranFullLength = get().getRemainingSeconds() <= 0;
-        get().saveCurrentFocus(ranFullLength);
+        syncPresence(null, get().saveCurrentFocus(ranFullLength));
 
         // 2. Play audio feedback & alert
         triggerTimerCompletionAlert(mode !== 'pomodoro');
@@ -355,6 +380,7 @@ export const useFocusStore = create<FocusStoreState>()(
           isStopwatchRunning: true,
           stopwatchStartTime: Date.now() - stopwatchPausedElapsed,
         });
+        syncPresence("open");
       },
 
       pauseStopwatch: () => {
@@ -366,9 +392,11 @@ export const useFocusStore = create<FocusStoreState>()(
           stopwatchPausedElapsed: Date.now() - stopwatchStartTime,
           stopwatchStartTime: null,
         });
+        syncPresence(null);
       },
 
       resetStopwatch: () => {
+        syncPresence(null);
         set({
           isStopwatchRunning: false,
           stopwatchStartTime: null,
@@ -383,13 +411,13 @@ export const useFocusStore = create<FocusStoreState>()(
           toast.info("Focus for at least a minute to save a session.");
           return;
         }
-        get().saveSession({
+        syncPresence(null, get().saveSession({
           minutes,
           plannedMinutes: minutes,
           completed: true,
           mode: 'stopwatch',
           startedAt: new Date(Date.now() - elapsedMs),
-        });
+        }));
         get().resetStopwatch();
         toast.success(`Saved ${minutes} min of focus. +${minutes * 2} XP`);
       },
@@ -413,11 +441,11 @@ export const useFocusStore = create<FocusStoreState>()(
 
       saveCurrentFocus: (completed) => {
         const { mode, sessionStartTime, sessionTotalSecs, durationMins } = get();
-        if (mode !== 'pomodoro' || !sessionStartTime) return;
+        if (mode !== 'pomodoro' || !sessionStartTime) return false;
 
         const plannedSecs = sessionTotalSecs ?? durationMins.pomodoro * 60;
         const focusedSecs = completed ? plannedSecs : Math.max(0, plannedSecs - get().getRemainingSeconds());
-        get().saveSession({
+        return get().saveSession({
           minutes: Math.round(focusedSecs / 60),
           plannedMinutes: Math.max(1, Math.round(plannedSecs / 60)),
           completed,
@@ -427,7 +455,7 @@ export const useFocusStore = create<FocusStoreState>()(
       },
 
       saveSession: ({ minutes, plannedMinutes, completed, mode, startedAt }) => {
-        if (minutes < 1) return; // under ~30 seconds: not worth saving
+        if (minutes < 1) return false; // under ~30 seconds: not worth saving
         const { currentTag, currentTaskId, currentTaskTitle, distractionNotes } = get();
         const endedAt = new Date();
         const notes = distractionNotes.join('\n') || undefined;
@@ -458,6 +486,22 @@ export const useFocusStore = create<FocusStoreState>()(
           })
           .then(() => refreshAfterSave(taskId))
           .catch(() => toast.error("Couldn't save this focus session to your account."));
+        return true;
+      },
+
+      startRoomTimer: (endsAtMs) => {
+        get().saveCurrentFocus(false); // keep anything already focused
+        const secs = Math.max(60, Math.round((endsAtMs - Date.now()) / 1000));
+        lastPresence = String(endsAtMs); // the join call already set it on the server
+        set({
+          activeTab: 'pomodoro',
+          mode: 'pomodoro',
+          isRunning: true,
+          targetEndTime: endsAtMs,
+          sessionStartTime: Date.now(),
+          sessionTotalSecs: secs,
+          pausedTimeLeft: secs,
+        });
       },
 
       getRemainingSeconds: () => {

@@ -11,6 +11,8 @@ import { AdminPagesTab, AdminPageRecord } from "./components/AdminPagesTab";
 import { AdminBlogsTab } from "./components/AdminBlogsTab";
 import { AdminSystemSettingsTab } from "./components/AdminSystemSettingsTab";
 import { AdminNotificationsTab } from "./components/AdminNotificationsTab";
+import { AdminAchievementsTab } from "./components/AdminAchievementsTab";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import {
   Users,
   Layers,
@@ -21,11 +23,12 @@ import {
   BookOpen,
   Cpu,
   BellRing,
+  Award,
 } from "lucide-react";
 
 export function AdminView() {
   const [activeTab, setActiveTab] = useState<
-    "users" | "pages" | "blogs" | "notifications" | "system"
+    "users" | "pages" | "blogs" | "badges" | "notifications" | "system"
   >("users");
 
   // Users State
@@ -177,68 +180,20 @@ export function AdminView() {
         />
       </div>
 
-      {/* 3. App-Standard Pill Tabs Bar */}
-      <div className="flex p-1 ios-card rounded-2xl bg-card border border-border overflow-x-auto w-fit">
-        {[
-          {
-            id: "users",
-            label: "User Directory",
-            count: usersList.length,
-            icon: Users,
-          },
-          {
-            id: "pages",
-            label: "App Modules CMS",
-            count: pagesList.length > 0 ? pagesList.length : undefined,
-            icon: Layers,
-          },
-          {
-            id: "blogs",
-            label: "Blog Articles CMS",
-            count: undefined,
-            icon: BookOpen,
-          },
-          {
-            id: "notifications",
-            label: "Notifications",
-            count: undefined,
-            icon: BellRing,
-          },
-          {
-            id: "system",
-            label: "System & Crons",
-            count: undefined,
-            icon: Cpu,
-          },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition whitespace-nowrap cursor-pointer ${
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                    isActive
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      {/* 3. Tabs */}
+      <div className="overflow-x-auto">
+        <SegmentedTabs
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: "users", label: "User Directory", icon: <Users className="w-3.5 h-3.5" />, badge: usersList.length },
+            { value: "pages", label: "App Modules CMS", icon: <Layers className="w-3.5 h-3.5" />, badge: pagesList.length },
+            { value: "blogs", label: "Blog Articles CMS", icon: <BookOpen className="w-3.5 h-3.5" /> },
+            { value: "badges", label: "Badges", icon: <Award className="w-3.5 h-3.5" /> },
+            { value: "notifications", label: "Notifications", icon: <BellRing className="w-3.5 h-3.5" /> },
+            { value: "system", label: "System & Crons", icon: <Cpu className="w-3.5 h-3.5" /> },
+          ]}
+        />
       </div>
 
       {/* 4. Actionable Tab Views */}
@@ -259,6 +214,8 @@ export function AdminView() {
       )}
 
       {activeTab === "blogs" && <AdminBlogsTab />}
+
+      {activeTab === "badges" && <AdminAchievementsTab />}
 
       {activeTab === "notifications" && <AdminNotificationsTab />}
 

@@ -24,7 +24,9 @@ import { FinanceView } from "@/modules/finance/FinanceView";
 import { AnalyticsView } from "@/modules/analytics/AnalyticsView";
 import { LeaderboardView } from "@/modules/leaderboard/LeaderboardView";
 import { ChallengesView } from "@/modules/challenges/ChallengesView";
+import { GroupsView } from "@/modules/groups/GroupsView";
 import { InviteJoinPrompt } from "@/modules/leaderboard/components/InviteJoinPrompt";
+import { AchievementUnlockWatcher } from "@/modules/achievements/AchievementUnlockWatcher";
 import { AdminView } from "@/modules/admin/AdminView";
 
 import { requestAndRegisterFCMToken } from "@/lib/firebase";
@@ -35,7 +37,7 @@ import { soundFX } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { Bell, X as CloseIcon } from "lucide-react";
 
-const NOTIFICATION_MODULES = new Set<string>(["tasks", "calendar", "habits", "leaderboard", "challenges"]);
+const NOTIFICATION_MODULES = new Set<string>(["tasks", "calendar", "habits", "leaderboard", "challenges", "groups", "pomodoro"]);
 
 function MainAppShell() {
   const {
@@ -194,6 +196,8 @@ function MainAppShell() {
         return <LeaderboardView />;
       case "challenges":
         return <ChallengesView />;
+      case "groups":
+        return <GroupsView />;
       case "admin":
         return <AdminView />;
       default:
@@ -206,6 +210,7 @@ function MainAppShell() {
       {/* 1. Desktop Sidebar with 3-Dot Menus & Top Favorites */}
       <DesktopSidebar />
       <InviteJoinPrompt />
+      <AchievementUnlockWatcher />
 
       {/* 2. Main Content Area */}
       <div className="flex flex-col flex-1 h-full min-w-0 overflow-y-auto">

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useApp } from "@/lib/store";
 import { useTheme } from "@/hooks/useTheme";
 import {
@@ -26,6 +26,7 @@ import { UserAvatar } from "../ui/UserAvatar";
 import { NotificationBell } from "./NotificationBell";
 
 export function TopHeader() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, activeModule, logout, openQuickAdd, openProfileModal } =
     useApp();
   const { theme, setTheme } = useTheme();
@@ -61,6 +62,10 @@ export function TopHeader() {
         return "Leaderboard";
       case "challenges":
         return "Challenges";
+      case "groups":
+        return "Groups";
+      case "admin":
+        return "Admin Center";
       default:
         return "Dashboard";
     }
@@ -113,7 +118,7 @@ export function TopHeader() {
         <NotificationBell />
 
         {/* User Profile Dropdown Menu */}
-        <DropdownMenu>
+        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -157,7 +162,10 @@ export function TopHeader() {
             <div className="pt-0.5">
               <button
                 type="button"
-                onClick={openProfileModal}
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  openProfileModal();
+                }}
                 className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold bg-muted/40 hover:bg-muted/70 text-card-foreground transition cursor-pointer"
               >
                 <div className="flex items-center gap-2">

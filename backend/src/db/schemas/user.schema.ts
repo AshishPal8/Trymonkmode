@@ -21,6 +21,8 @@ export const users = pgTable('users', {
   username: varchar('username', { length: 20 }).unique(),
   // Personal invite link code (trymonkmode.in/?invite=CODE). Created on first use.
   inviteCode: varchar('invite_code', { length: 12 }).unique(),
+  // Who invited this user (set once, when a brand-new account joins through an invite link).
+  referredBy: integer('referred_by'),
   role: varchar('role', { length: 50 }).notNull().default('user'), // 'superadmin' | 'admin' | 'user'
   xp: integer('xp').notNull().default(0),
   level: integer('level').notNull().default(1),

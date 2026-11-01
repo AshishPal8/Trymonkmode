@@ -71,6 +71,15 @@ export const DEFAULT_APP_PAGES = [
     isEnabled: true,
   },
   {
+    key: "groups",
+    name: "Groups",
+    path: "/groups",
+    hub: "Community",
+    icon: "UsersRound",
+    orderIndex: 14,
+    isEnabled: true,
+  },
+  {
     key: "challenges",
     name: "Challenges",
     path: "/challenges",

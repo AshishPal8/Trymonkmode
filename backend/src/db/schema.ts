@@ -16,3 +16,5 @@ export * from "./schemas/focus.schema.js";
 export * from "./schemas/streak.schema.js";
 export * from "./schemas/social.schema.js";
 export * from "./schemas/challenge.schema.js";
+export * from "./schemas/achievement.schema.js";
+export * from "./schemas/group.schema.js";

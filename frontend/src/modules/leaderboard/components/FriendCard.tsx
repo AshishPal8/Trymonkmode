@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Lock, MoreVertical, UserX, Ban } from "lucide-react";
+import { Ban, Hand, Lock, MoreVertical, UserX } from "lucide-react";
 import type { Friend } from "@/lib/types";
 import {
   DropdownMenu,
@@ -11,14 +11,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PersonRow } from "./PersonRow";
 import { StatPills } from "./StatPill";
+import { minutesLeft } from "@/lib/utils";
 
 interface FriendCardProps {
   friend: Friend;
   onRemove: () => void;
   onBlock: () => void;
+  onNudge: () => void;
 }
 
-export function FriendCard({ friend, onRemove, onBlock }: FriendCardProps) {
+export function FriendCard({ friend, onRemove, onBlock, onNudge }: FriendCardProps) {
   const { stats } = friend;
 
   return (
@@ -35,6 +37,9 @@ export function FriendCard({ friend, onRemove, onBlock }: FriendCardProps) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onNudge} className="gap-2 text-xs cursor-pointer">
+              <Hand className="w-3.5 h-3.5" /> Nudge to focus
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onRemove} className="gap-2 text-xs cursor-pointer">
               <UserX className="w-3.5 h-3.5" /> Remove friend
             </DropdownMenuItem>
@@ -44,6 +49,13 @@ export function FriendCard({ friend, onRemove, onBlock }: FriendCardProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </PersonRow>
+
+      {stats?.focusingUntil && (
+        <p className="text-[11px] font-semibold text-primary flex items-center gap-1.5 px-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          Focusing now · {minutesLeft(stats.focusingUntil)}
+        </p>
+      )}
 
       {stats ? (
         <StatPills stats={stats} />

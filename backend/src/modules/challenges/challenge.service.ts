@@ -29,7 +29,15 @@ function describe(c: ChallengeRow) {
   const today = todayIn(c.timezone);
   const metric = c.metric as ChallengeMetric;
   return {
-    ...c,
+    id: c.id,
+    title: c.title,
+    description: c.description,
+    emoji: c.emoji,
+    dailyTarget: c.dailyTarget,
+    durationDays: c.durationDays,
+    startDate: c.startDate,
+    endDate: c.endDate,
+    timezone: c.timezone,
     metric,
     metricLabel: METRICS[metric].label,
     phase: phaseOf(today, c.startDate, c.endDate),
@@ -156,7 +164,7 @@ export async function listChallengesService(me: number) {
   const memberCount = new Map(counts.map((c) => [c.challengeId, c.n]));
   const standingById = new Map(myStandings);
   const summary = (c: ChallengeRow) => {
-    const { lastDay: _lastDay, ...info } = describe(c);
+    const { lastDay: _lastDay, timezone: _tz, today: _today, ...info } = describe(c);
     return { ...info, memberCount: memberCount.get(c.id) ?? 0 };
   };
 
@@ -169,7 +177,7 @@ export async function listChallengesService(me: number) {
 export async function getChallengeDetailService(me: number, id: number) {
   const challenge = await getChallenge(id);
   const leaderboard = await loadLeaderboard(challenge);
-  const { lastDay: _lastDay, ...info } = describe(challenge);
+  const { lastDay: _lastDay, timezone: _tz, today: _today, ...info } = describe(challenge);
   const mine = leaderboard.find((row) => row.user.id === me) ?? null;
 
   return {
@@ -213,4 +221,17 @@ export async function checkInService(me: number, id: number) {
   if (phase !== "active") throw new BadRequestError("This challenge isn't running today.");
   await db.insert(challengeCheckins).values({ challengeId: id, userId: me, day: today }).onConflictDoNothing();
   return getChallengeDetailService(me, id);
+}
+
+/** How many finished challenges this user completed on every single day (for badges). */
+export async function countCompletedChallenges(userId: number): Promise<number> {
+  const today = todayIn(DEFAULT_TIMEZONE);
+  const ended = await db
+    .select({ challenge: challenges })
+    .from(challengeMembers)
+    .innerJoin(challenges, eq(challenges.id, challengeMembers.challengeId))
+    .where(and(eq(challengeMembers.userId, userId), sql`${challenges.endDate} < ${today}`));
+
+  const standings = await Promise.all(ended.map(({ challenge }) => standingOf(challenge, userId)));
+  return standings.filter((s, i) => s.daysDone >= ended[i].challenge.durationDays).length;
 }

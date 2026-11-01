@@ -62,10 +62,11 @@ export async function updateProfileService(
 
   if (Object.keys(settingsUpdates).length > 0) {
     settingsUpdates.updatedAt = new Date();
+    // Upsert: accounts without a settings row used to lose these changes silently.
     await db
-      .update(userSettings)
-      .set(settingsUpdates)
-      .where(eq(userSettings.userId, userId));
+      .insert(userSettings)
+      .values({ userId, ...settingsUpdates })
+      .onConflictDoUpdate({ target: userSettings.userId, set: settingsUpdates });
 
     // Send times depend on timezone and lead time, so recompute them after
     // the new values are saved. (Turning notifications off/on needs nothing:

@@ -217,7 +217,8 @@ export const useUserStore = create<UserStoreState>()(
             const clientTz = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC';
             const userTz = u.timezone && u.timezone !== 'UTC' ? u.timezone : clientTz;
 
-            if (!u.timezone || u.timezone === 'UTC') {
+            // Save the browser's timezone once (skip when it is UTC too: nothing would change).
+            if ((!u.timezone || u.timezone === 'UTC') && clientTz !== 'UTC') {
               usersApi.updateProfile({ timezone: clientTz }).catch(() => {});
             }
 
