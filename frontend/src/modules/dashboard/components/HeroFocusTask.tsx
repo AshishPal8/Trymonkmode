@@ -3,7 +3,7 @@
 import React from 'react';
 import { TaskItem } from '@/lib/types';
 import { formatDatePretty } from '@/lib/utils';
-import { MapPin, Clock, Edit2, ChevronRight, Check, Sparkles, Plus } from 'lucide-react';
+import { Clock, Edit2, ChevronRight, Check, Sparkles, Plus } from 'lucide-react';
 
 interface HeroFocusTaskProps {
   task?: TaskItem;

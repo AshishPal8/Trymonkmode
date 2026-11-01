@@ -18,6 +18,8 @@ import {
   Target,
   Bookmark,
   BarChart3,
+  Trophy,
+  Swords,
   X
 } from 'lucide-react';
 
@@ -37,7 +39,9 @@ export function MobileTabBar() {
     { id: 'notes', label: 'Notes', icon: FileText, color: 'text-blue-500' },
     { id: 'bookmarks', label: 'Resources', icon: Bookmark, color: 'text-indigo-500' },
     { id: 'finance', label: 'Finance', icon: DollarSign, color: 'text-emerald-500' },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'text-cyan-500' }
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'text-cyan-500' },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, color: 'text-pink-500' },
+    { id: 'challenges', label: 'Challenges', icon: Swords, color: 'text-orange-500' }
   ];
 
   return (

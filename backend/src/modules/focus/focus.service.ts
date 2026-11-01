@@ -1,12 +1,11 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { focusSessions, tasks, users } from "../../db/schema.js";
+import { focusSessions, tasks } from "../../db/schema.js";
 import { BadRequestError } from "../../utils/errors.js";
 import type { CreateFocusSessionInput } from "./focus.schema.js";
 import { goalIdOfTask } from "../goals/goals.service.js";
+import { addXp, XP } from "../../utils/xp.js";
 
-// 2 XP per focused minute (a full 25-min session = 50 XP, same as before).
-const XP_PER_MINUTE = 2;
 
 export async function createFocusSessionService(
   userId: number,
@@ -25,7 +24,7 @@ export async function createFocusSessionService(
     throw new BadRequestError("Focused time can't be longer than the session itself.");
   }
 
-  const xpGained = input.durationMinutes * XP_PER_MINUTE;
+  const xpGained = input.durationMinutes * XP.focusPerMinute;
 
   // Time spent on a task also counts toward that task's goal.
   const goalId = input.taskId ? await goalIdOfTask(userId, input.taskId) : null;
@@ -35,10 +34,7 @@ export async function createFocusSessionService(
     .values({ userId, ...input, goalId })
     .returning();
 
-  await db
-    .update(users)
-    .set({ xp: sql`${users.xp} + ${xpGained}` })
-    .where(eq(users.id, userId));
+  await addXp(userId, xpGained);
 
   return { session, xpGained };
 }

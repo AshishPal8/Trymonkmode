@@ -11,6 +11,7 @@ import {
   registerServiceWorker,
 } from "@/lib/notifications";
 import { requestAndRegisterFCMToken } from "@/lib/firebase";
+import { useAnalyticsStore } from "./analyticsStore";
 
 export const INITIAL_USER: UserProfile = {
   name: "",
@@ -156,6 +157,11 @@ export const useUserStore = create<UserStoreState>()(
             notifyTaskReminders: data.notifyTaskReminders,
             notifyEventReminders: data.notifyEventReminders,
             notifyHabitReminders: data.notifyHabitReminders,
+            restDays: data.restDays,
+          })
+          .then(() => {
+            // Rest days change how the streak is counted.
+            if (data.restDays !== undefined) useAnalyticsStore.getState().fetchAnalytics();
           })
           .catch(() => {});
       },
@@ -233,6 +239,7 @@ export const useUserStore = create<UserStoreState>()(
                 notifyTaskReminders: u.notifyTaskReminders ?? true,
                 notifyEventReminders: u.notifyEventReminders ?? true,
                 notifyHabitReminders: u.notifyHabitReminders ?? true,
+                restDays: Array.isArray(u.restDays) ? u.restDays : [],
                 role: u.role || "user",
                 planTier: u.planTier || "free",
                 level: u.level || 1,
@@ -274,3 +281,11 @@ export const useUserStore = create<UserStoreState>()(
     },
   ),
 );
+
+// Keep the streak shown in the sidebar/header in step with the live streak
+// from analytics (the profile's copy is only loaded at sign-in).
+useAnalyticsStore.subscribe((state) => {
+  const live = state.analyticsData?.streak;
+  const { user, setUser } = useUserStore.getState();
+  if (typeof live === "number" && user.streak !== live) setUser({ ...user, streak: live });
+});

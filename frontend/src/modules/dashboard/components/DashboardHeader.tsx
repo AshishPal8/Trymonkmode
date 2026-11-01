@@ -4,6 +4,7 @@ import React from 'react';
 import { Play, LayoutDashboard, BarChart3 } from 'lucide-react';
 import { formatDatePretty, getTodayDateString } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 
 interface DashboardHeaderProps {
   pendingTasksCount: number;
@@ -36,32 +37,14 @@ export function DashboardHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Modular View Switcher: Overview vs Deep Analytics */}
-        <div className="flex p-1 ios-card rounded-2xl bg-card border border-border">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'overview'
-                ? 'bg-[#0052FF] text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            <span>Overview</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-              activeTab === 'analytics'
-                ? 'bg-[#0052FF] text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            <span>Analytics</span>
-          </button>
-        </div>
+        <SegmentedTabs
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
+            { value: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-3.5 h-3.5" /> },
+          ]}
+        />
 
         <Button
           onClick={onStartFocus}

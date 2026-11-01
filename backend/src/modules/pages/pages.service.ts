@@ -62,6 +62,25 @@ export const DEFAULT_APP_PAGES = [
   },
 
   {
+    key: "leaderboard",
+    name: "Leaderboard",
+    path: "/leaderboard",
+    hub: "Community",
+    icon: "Trophy",
+    orderIndex: 12,
+    isEnabled: true,
+  },
+  {
+    key: "challenges",
+    name: "Challenges",
+    path: "/challenges",
+    hub: "Community",
+    icon: "Swords",
+    orderIndex: 13,
+    isEnabled: true,
+  },
+
+  {
     key: "habits",
     name: "Habits",
     path: "/habits",
@@ -123,7 +142,15 @@ export const DEFAULT_APP_PAGES = [
   },
 ];
 
-export async function ensurePagesSeeded() {
+let seeding: Promise<void> | null = null;
+
+/** Upserts the built-in pages once per server start (not on every request). */
+export function ensurePagesSeeded(): Promise<void> {
+  seeding ??= seedPages();
+  return seeding;
+}
+
+async function seedPages() {
   try {
     for (const page of DEFAULT_APP_PAGES) {
       await db

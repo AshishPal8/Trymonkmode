@@ -1,8 +1,9 @@
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { journalEntries, dailyPrompts, users } from "../../db/schema.js";
+import { journalEntries, dailyPrompts } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import type { CreateJournalInput } from "./journal.schema.js";
+import { addXp, XP } from "../../utils/xp.js";
 
 export async function getEntriesService(userId: number) {
   return db
@@ -74,10 +75,7 @@ export async function upsertEntryService(
     })
     .returning();
 
-  await db
-    .update(users)
-    .set({ xp: sql`${users.xp} + 40` })
-    .where(eq(users.id, userId));
+  await addXp(userId, XP.journalEntry);
 
   return { entry: created, isNew: true, xpGained: 40 };
 }

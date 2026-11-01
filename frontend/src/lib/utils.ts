@@ -50,6 +50,14 @@ export function getTodayDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
+/** "2026-10-31" + 2 -> "2026-11-02" (local calendar days). */
+export function addDaysTo(day: string, n: number): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const date = new Date(y, m - 1, d + n);
+  const p = (x: number) => String(x).padStart(2, "0");
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+}
+
 /** "2026-10-29T21:47:05" in the browser's local time (no Z), so
  *  `startsWith(getTodayDateString())` matches the user's own day. */
 export function toLocalIsoString(date: Date = new Date()): string {
@@ -191,4 +199,25 @@ export const soundFX = new SoundFX();
 export function serverIdFrom(res: unknown): string | null {
   const id = (res as { data?: { data?: { id?: unknown } } })?.data?.data?.id;
   return id !== undefined && id !== null ? String(id) : null;
+}
+
+/** Returns a copy of `list` with the item at `from` moved to `to`. */
+export function moveItem<T>(list: T[], from: number, to: number): T[] {
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
+/** 95 -> "1h 35m", 30 -> "30m". */
+export function formatMinutes(min: number): string {
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/** Compact form for small spaces: 45 -> "45m", 225 -> "3.8h". */
+export function formatMinutesShort(min: number): string {
+  return min < 60 ? `${min}m` : `${Number((min / 60).toFixed(1))}h`;
 }

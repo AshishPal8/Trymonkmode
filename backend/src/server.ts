@@ -2,6 +2,7 @@ import { app } from "./app.js";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { startAllCrons, stopAllCrons } from "./modules/cron/index.js";
+import { backfillUsernames } from "./modules/social/social.profile.service.js";
 
 async function startServer() {
   try {
@@ -16,6 +17,9 @@ async function startServer() {
     // ⚡ Background Cron Engine (Reminders & Midnight DB Maintenance)
     // Comment this single line if you ever want to stop all server crons:
     startAllCrons();
+
+    // Accounts made before usernames existed get one (runs in the background).
+    backfillUsernames().catch((err) => console.error("Username backfill failed:", err));
 
     const handleShutdown = (signal: string) => {
       console.log(`Received ${signal}. Shutting down gracefully...`);

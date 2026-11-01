@@ -1,22 +1,24 @@
-export type ThemeMode = 'dark' | 'light';
+export type ThemeMode = "dark" | "light";
 
-export type CategoryHub = 'productivity' | 'focus' | 'mind' | 'finance';
+export type CategoryHub = "productivity" | "focus" | "mind" | "finance";
 
 export type ActiveModuleId =
-  | 'dashboard'
-  | 'tasks'
-  | 'calendar'
-  | 'matrix'
-  | 'goals'
-  | 'pomodoro'
-  | 'stopwatch'
-  | 'habits'
-  | 'journal'
-  | 'notes'
-  | 'bookmarks'
-  | 'finance'
-  | 'analytics'
-  | 'admin';
+  | "dashboard"
+  | "tasks"
+  | "calendar"
+  | "matrix"
+  | "goals"
+  | "pomodoro"
+  | "stopwatch"
+  | "habits"
+  | "journal"
+  | "notes"
+  | "bookmarks"
+  | "finance"
+  | "analytics"
+  | "leaderboard"
+  | "challenges"
+  | "admin";
 
 export interface AppPageItem {
   id: number;
@@ -39,13 +41,13 @@ export interface UserProfile {
   notificationsEnabled?: boolean;
   emailNotifications?: boolean;
   soundEffects?: boolean;
-  /** Minutes before a task/event to send its reminder (0 = at the time). */
   reminderLeadMinutes?: number;
   notifyTaskReminders?: boolean;
   notifyEventReminders?: boolean;
   notifyHabitReminders?: boolean;
-  role?: 'superadmin' | 'admin' | 'user';
-  planTier?: 'free' | 'pro' | 'ai_ultra' | 'lifetime';
+  restDays?: number[];
+  role?: "superadmin" | "admin" | "user";
+  planTier?: "free" | "pro" | "ai_ultra" | "lifetime";
   level: number;
   xp: number;
   xpToNextLevel: number;
@@ -53,7 +55,7 @@ export interface UserProfile {
   joinedDate: string;
 }
 
-export type PriorityLevel = 'P1' | 'P2' | 'P3' | 'P4';
+export type PriorityLevel = "P1" | "P2" | "P3" | "P4";
 
 export interface Subtask {
   id: string;
@@ -73,7 +75,11 @@ export interface TaskItem {
   subtasks: Subtask[];
   completed: boolean;
   completedAt?: string;
-  quadrant: 'urgent-important' | 'notUrgent-important' | 'urgent-notImportant' | 'notUrgent-notImportant';
+  quadrant:
+    | "urgent-important"
+    | "notUrgent-important"
+    | "urgent-notImportant"
+    | "notUrgent-notImportant";
   createdAt: string;
   goalId?: string | null;
   milestoneId?: string | null;
@@ -85,8 +91,8 @@ export interface HabitItem {
   description?: string;
   timeFrom: string;
   timeTo: string;
-  priority: 'high' | 'medium' | 'low';
-  category: 'Health' | 'Fitness' | 'Work' | 'Mindset' | 'Learning';
+  priority: "high" | "medium" | "low";
+  category: "Health" | "Fitness" | "Work" | "Mindset" | "Learning";
   color: string;
   icon: string;
   targetDays: number[];
@@ -104,12 +110,18 @@ export interface CalendarEvent {
   date: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string;
-  category: 'deep-work' | 'meeting' | 'fitness' | 'personal' | 'learning';
+  category: "deep-work" | "meeting" | "fitness" | "personal" | "learning";
   color: string;
   location?: string;
 }
 
-export type MoodType = 'ecstatic' | 'happy' | 'neutral' | 'sad' | 'stressed' | 'down';
+export type MoodType =
+  | "ecstatic"
+  | "happy"
+  | "neutral"
+  | "sad"
+  | "stressed"
+  | "down";
 
 export interface JournalEntry {
   id: string;
@@ -141,8 +153,8 @@ export interface NoteItem {
   updatedAt?: string;
 }
 
-export type GoalKind = 'project' | 'target' | 'focus';
-export type GoalStatus = 'active' | 'paused' | 'done';
+export type GoalKind = "project" | "target" | "focus";
+export type GoalStatus = "active" | "paused" | "done";
 
 export interface GoalMilestone {
   id: string;
@@ -206,8 +218,15 @@ export interface BookmarkItem {
   id: string;
   title: string;
   url: string;
-  category: 'GitHub' | 'YouTube' | 'Books' | 'Articles' | 'Tools' | 'Websites' | 'Courses';
-  type: 'repo' | 'book' | 'article' | 'video' | 'tool' | 'link';
+  category:
+    | "GitHub"
+    | "YouTube"
+    | "Books"
+    | "Articles"
+    | "Tools"
+    | "Websites"
+    | "Courses";
+  type: "repo" | "book" | "article" | "video" | "tool" | "link";
   tags: string[];
   notes?: string;
   isFavorite: boolean;
@@ -218,12 +237,25 @@ export interface BookmarkItem {
 export interface TransactionItem {
   id: string;
   title: string;
-  category: 'Salary' | 'Food' | 'Transport' | 'Tech & Subscriptions' | 'Rent' | 'Health' | 'Shopping' | 'General';
+  category:
+    | "Salary"
+    | "Food"
+    | "Transport"
+    | "Tech & Subscriptions"
+    | "Rent"
+    | "Health"
+    | "Shopping"
+    | "General";
   amount: number;
-  type: 'expense' | 'income';
+  type: "expense" | "income";
   date: string;
   time: string;
-  paymentMethod: 'Apple Pay' | 'Credit Card' | 'PayPal' | 'Bank Transfer' | 'Cash';
+  paymentMethod:
+    | "Apple Pay"
+    | "Credit Card"
+    | "PayPal"
+    | "Bank Transfer"
+    | "Cash";
   note?: string;
 }
 
@@ -282,6 +314,7 @@ export interface AnalyticsData {
   weeklyAdherenceRate: number;
   habitCompletionRate: number;
   streak: number;
+  streakStatus?: StreakStatus;
   xp: number;
   level: number;
   xpToNextLevel: number;
@@ -292,4 +325,150 @@ export interface AnalyticsData {
   dailyVelocity: DailyVelocityItem[];
   categoryDistribution?: CategoryDistributionItem[];
   consistencyScorecard?: ConsistencyScorecard;
+}
+export type StreakDayState =
+  | "active"
+  | "rest"
+  | "repaired"
+  | "missed"
+  | "today"
+  | "future";
+
+export interface StreakStatus {
+  current: number;
+  brokenOn: string | null;
+  streakIfRepaired: number | null;
+  week: { date: string; dow: number; state: StreakDayState }[];
+  activeDaysThisWeek: number;
+  weekStart: string;
+  todayIsRest: boolean;
+  activeToday: boolean;
+  restDays: number[];
+  repairsLeft: number;
+  repairsPerMonth: number;
+  canRepair: boolean;
+  weeklyGoalDays: number;
+  weeklyBonusXp: number;
+  weeklyBonusEarned: boolean;
+  bonusJustEarned: boolean;
+}
+
+// ─── Friends ─────────────────────────────────────────────────────────────────
+
+export type StatsVisibility = "public" | "private";
+
+export interface PublicUser {
+  id: number;
+  name: string;
+  username: string | null;
+  avatar: string | null;
+}
+
+/** Null when the friend keeps their stats private. */
+export interface FriendStats {
+  streak: number;
+  xp: number;
+  level: number;
+  weekFocusMinutes: number;
+}
+
+export interface Friend extends PublicUser {
+  since: string;
+  stats: FriendStats | null;
+}
+
+export interface FriendRequest extends PublicUser {
+  sentAt: string;
+}
+
+export interface FriendsData {
+  friends: Friend[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+  blocked: PublicUser[];
+}
+
+export interface SocialProfile {
+  username: string | null;
+  inviteCode: string;
+  statsVisibility: StatsVisibility;
+}
+
+export type LeaderboardSort = "xp" | "streak" | "focus";
+
+export interface LeaderboardEntry {
+  rank: number;
+  user: PublicUser;
+  stats: FriendStats;
+}
+
+export interface LeaderboardPage {
+  sort: LeaderboardSort;
+  page: number;
+  totalPages: number;
+  total: number;
+  items: LeaderboardEntry[];
+  /** Null when your stats are private. */
+  me: LeaderboardEntry | null;
+}
+
+// ─── Challenges ──────────────────────────────────────────────────────────────
+
+export type ChallengeMetric = "focus_minutes" | "focus_sessions" | "tasks_done" | "habit_checkins" | "manual";
+export type ChallengePhase = "upcoming" | "active" | "ended";
+
+export interface ChallengeStanding {
+  daysDone: number;
+  totalValue: number;
+  todayValue: number;
+  streak: number;
+}
+
+export interface Challenge {
+  id: number;
+  title: string;
+  description: string;
+  emoji: string;
+  metric: ChallengeMetric;
+  metricLabel: string;
+  dailyTarget: number;
+  durationDays: number;
+  startDate: string;
+  endDate: string;
+  phase: ChallengePhase;
+  dayNumber: number;
+  today: string;
+  memberCount: number;
+}
+
+export interface ChallengeListItem extends Challenge {
+  myStanding?: ChallengeStanding | null;
+}
+
+export interface ChallengeLists {
+  joined: ChallengeListItem[];
+  available: ChallengeListItem[];
+}
+
+export interface ChallengeRankRow {
+  rank: number;
+  user: PublicUser;
+  standing: ChallengeStanding;
+}
+
+export interface ChallengeDetail extends Challenge {
+  isMember: boolean;
+  canCheckIn: boolean;
+  leaderboard: ChallengeRankRow[];
+  me: ChallengeRankRow | null;
+}
+
+export interface NewChallengeInput {
+  title: string;
+  description: string;
+  emoji: string;
+  metric: ChallengeMetric;
+  dailyTarget: number;
+  durationDays: number;
+  startDate: string;
 }

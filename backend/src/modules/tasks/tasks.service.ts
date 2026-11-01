@@ -1,6 +1,6 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { tasks, users } from "../../db/schema.js";
+import { tasks } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import type { CreateTaskInput, UpdateTaskInput } from "./tasks.schema.js";
 import {
@@ -8,6 +8,7 @@ import {
   cancelTaskReminder,
 } from "../cron/reminders.cron.js";
 import { resolveGoalLink } from "../goals/goals.service.js";
+import { addXp, XP } from "../../utils/xp.js";
 
 export async function getTasksService(
   userId: number,
@@ -52,14 +53,12 @@ export async function createTaskService(
       tags: input.tags,
       subtasks: input.subtasks,
       completed: input.completed,
+      completedAt: input.completed ? new Date() : null,
       quadrant: input.quadrant,
     })
     .returning();
 
-  await db
-    .update(users)
-    .set({ xp: sql`${users.xp} + 10` })
-    .where(eq(users.id, userId));
+  await addXp(userId, XP.taskCreated);
 
   // Instantly schedule in-memory reminder if dueTime is provided
   if (created.dueTime) {
@@ -82,6 +81,10 @@ export async function updateTaskService(
 
   if (input.dueDate !== undefined || input.dueTime !== undefined) {
     updateData.reminderSent = false;
+  }
+
+  if (input.completed !== undefined) {
+    updateData.completedAt = input.completed ? new Date() : null;
   }
 
   if (input.goalId !== undefined || input.milestoneId !== undefined) {
@@ -136,6 +139,7 @@ export async function toggleTaskService(userId: number, taskId: number) {
     .update(tasks)
     .set({
       completed: nextCompleted,
+      completedAt: nextCompleted ? new Date() : null,
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId))
@@ -143,10 +147,7 @@ export async function toggleTaskService(userId: number, taskId: number) {
 
   if (nextCompleted) {
     cancelTaskReminder(taskId);
-    await db
-      .update(users)
-      .set({ xp: sql`${users.xp} + 25` })
-      .where(eq(users.id, userId));
+    await addXp(userId, XP.taskCompleted);
   } else if (updated.dueTime) {
     scheduleTaskReminder(updated).catch(() => {});
   }

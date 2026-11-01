@@ -1,12 +1,13 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db } from "../../config/db.js";
-import { habits, users } from "../../db/schema.js";
+import { habits } from "../../db/schema.js";
 import { NotFoundError } from "../../utils/errors.js";
 import type { CreateHabitInput, UpdateHabitInput } from "./habits.schema.js";
 import {
   scheduleHabitReminder,
   cancelHabitReminder,
 } from "../cron/reminders.cron.js";
+import { addXp, XP } from "../../utils/xp.js";
 
 export async function getHabitsService(userId: number) {
   return db
@@ -115,10 +116,7 @@ export async function toggleCheckInService(
     .returning();
 
   if (!isCompleted) {
-    await db
-      .update(users)
-      .set({ xp: sql`${users.xp} + 15` })
-      .where(eq(users.id, userId));
+    await addXp(userId, XP.habitCheckIn);
   }
 
   return {

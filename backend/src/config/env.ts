@@ -24,6 +24,11 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z
     .string()
     .default(() => process.env.GOOGLE_CLIENT_ID || ""),
+  // Extra Google OAuth client IDs (comma separated) allowed for native sign-in,
+  // e.g. the Android / iOS app clients.
+  GOOGLE_NATIVE_CLIENT_IDS: z
+    .string()
+    .default(() => process.env.GOOGLE_NATIVE_CLIENT_IDS || ""),
   GOOGLE_CLIENT_SECRET: z
     .string()
     .default(() => process.env.GOOGLE_CLIENT_SECRET || ""),

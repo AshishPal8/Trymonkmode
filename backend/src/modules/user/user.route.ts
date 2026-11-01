@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { auditAdmin } from "../../middlewares/audit.middleware.js";
 import {
   getProfileHandler,
   updateProfileHandler,
@@ -29,6 +30,7 @@ router.patch(
   "/:id/role-tier",
   authorizeRoles("superadmin"),
   validate({ body: updateUserRoleTierSchema }),
+  auditAdmin("user.role_tier.update"),
   updateUserRoleTierHandler,
 );
 

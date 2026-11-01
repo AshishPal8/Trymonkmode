@@ -125,6 +125,24 @@ export const DEFAULT_PAGES: AppPageItem[] = [
     icon: "DollarSign",
     orderIndex: 11,
   },
+  {
+    id: 12,
+    key: "leaderboard",
+    name: "Leaderboard",
+    path: "/leaderboard",
+    hub: "Community",
+    icon: "Trophy",
+    orderIndex: 12,
+  },
+  {
+    id: 13,
+    key: "challenges",
+    name: "Challenges",
+    path: "/challenges",
+    hub: "Community",
+    icon: "Swords",
+    orderIndex: 13,
+  },
 ];
 
 export interface UIStoreState {
@@ -233,6 +251,7 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
               get().loadModuleData("habits"),
               get().loadModuleData("calendar"),
               get().loadModuleData("pomodoro"),
+              get().loadModuleData("goals"),
             ]);
           }
           break;

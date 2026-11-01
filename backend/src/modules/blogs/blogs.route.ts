@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { auditAdmin } from "../../middlewares/audit.middleware.js";
 import {
   getPublicBlogsHandler,
   getBlogBySlugHandler,
@@ -32,6 +33,7 @@ router.post(
   authenticate,
   authorizeRoles("superadmin", "admin"),
   validate({ body: createBlogSchema }),
+  auditAdmin("blog.create"),
   createBlogHandler,
 );
 
@@ -40,6 +42,7 @@ router.patch(
   authenticate,
   authorizeRoles("superadmin", "admin"),
   validate({ body: updateBlogSchema }),
+  auditAdmin("blog.update"),
   updateBlogHandler,
 );
 
@@ -47,6 +50,7 @@ router.delete(
   "/:id",
   authenticate,
   authorizeRoles("superadmin", "admin"),
+  auditAdmin("blog.delete"),
   deleteBlogHandler,
 );
 

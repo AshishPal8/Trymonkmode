@@ -15,6 +15,8 @@ export const updateProfileSchema = z.object({
   notifyTaskReminders: z.boolean().optional(),
   notifyEventReminders: z.boolean().optional(),
   notifyHabitReminders: z.boolean().optional(),
+  // Up to 2 planned rest weekdays (0 = Sunday)
+  restDays: z.array(z.number().int().min(0).max(6)).max(2).optional(),
 });
 
 export const updateUserRoleTierSchema = z.object({

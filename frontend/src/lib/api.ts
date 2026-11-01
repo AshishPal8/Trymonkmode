@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import type { LeaderboardSort, NewChallengeInput } from "./types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -20,7 +21,12 @@ api.interceptors.request.use(
       const token =
         localStorage.getItem("trymonk_access_token") ||
         localStorage.getItem("aura_access_token");
-      if (token && token !== "undefined" && config.headers && !config.headers.Authorization) {
+      if (
+        token &&
+        token !== "undefined" &&
+        config.headers &&
+        !config.headers.Authorization
+      ) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       try {
@@ -145,6 +151,8 @@ export const authApi = {
   ) => api.post("/auth/verify-otp", { email, otp, name, type }),
   refreshToken: (refreshToken?: string) =>
     api.post("/auth/refresh-token", refreshToken ? { refreshToken } : {}),
+  exchangeGoogleCode: (code: string) =>
+    api.post("/auth/google/exchange", { code }),
   getMe: () => api.get("/auth/me"),
   logout: (refreshToken?: string) =>
     api.post("/auth/logout", refreshToken ? { refreshToken } : {}),
@@ -209,13 +217,23 @@ export const goalsApi = {
   getGoal: (id: number) => api.get(`/goals/${id}`),
   updateGoal: (id: number, data: any) => api.patch(`/goals/${id}`, data),
   deleteGoal: (id: number) => api.delete(`/goals/${id}`),
-  createMilestone: (goalId: number, data: { title: string; dueDate?: string | null }) =>
-    api.post(`/goals/${goalId}/milestones`, data),
+  createMilestone: (
+    goalId: number,
+    data: { title: string; dueDate?: string | null },
+  ) => api.post(`/goals/${goalId}/milestones`, data),
   updateMilestone: (
     milestoneId: number,
-    data: { title?: string; dueDate?: string | null; completed?: boolean; orderIndex?: number },
+    data: {
+      title?: string;
+      dueDate?: string | null;
+      completed?: boolean;
+      orderIndex?: number;
+    },
   ) => api.patch(`/goals/milestones/${milestoneId}`, data),
-  deleteMilestone: (milestoneId: number) => api.delete(`/goals/milestones/${milestoneId}`),
+  deleteMilestone: (milestoneId: number) =>
+    api.delete(`/goals/milestones/${milestoneId}`),
+  reorderMilestones: (goalId: number, milestoneIds: number[]) =>
+    api.put(`/goals/${goalId}/milestones/order`, { milestoneIds }),
 };
 
 export const notesApi = {
@@ -262,6 +280,11 @@ export const analyticsApi = {
   getAnalytics: () => api.get("/analytics"),
 };
 
+export const streakApi = {
+  get: () => api.get("/streak"),
+  repair: () => api.post("/streak/repair"),
+};
+
 export const blogsApi = {
   getPublicBlogs: (params?: {
     page?: number | string;
@@ -289,6 +312,39 @@ export const uploadApi = {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
+};
+
+/** The message the backend sent with an error, or `fallback`. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  return (err as AxiosError<{ message?: string }>)?.response?.data?.message || fallback;
+}
+
+export const socialApi = {
+  getProfile: () => api.get("/social/me"),
+  updateProfile: (data: { statsVisibility: "public" | "private" }) =>
+    api.patch("/social/me", data),
+  resetInvite: () => api.post("/social/invite/reset"),
+  previewInvite: (code: string) => api.get(`/social/invite/${encodeURIComponent(code)}`),
+  joinInvite: (code: string) => api.post("/social/invite/join", { code }),
+  getFriends: () => api.get("/social/friends"),
+  sendRequest: (username: string) => api.post("/social/friends/requests", { username }),
+  accept: (userId: number) => api.post(`/social/friends/${userId}/accept`),
+  decline: (userId: number) => api.post(`/social/friends/${userId}/decline`),
+  remove: (userId: number) => api.delete(`/social/friends/${userId}`),
+  block: (userId: number) => api.post(`/social/friends/${userId}/block`),
+  unblock: (userId: number) => api.post(`/social/friends/${userId}/unblock`),
+  getLeaderboard: (params: { sort: LeaderboardSort; page: number; limit?: number }) =>
+    api.get("/social/leaderboard", { params }),
+};
+
+export const challengesApi = {
+  list: () => api.get("/challenges"),
+  get: (id: number) => api.get(`/challenges/${id}`),
+  create: (input: NewChallengeInput) => api.post("/challenges", input),
+  join: (id: number) => api.post(`/challenges/${id}/join`),
+  leave: (id: number) => api.post(`/challenges/${id}/leave`),
+  checkIn: (id: number) => api.post(`/challenges/${id}/check-in`),
+  remove: (id: number) => api.delete(`/challenges/${id}`),
 };
 
 export const focusApi = {

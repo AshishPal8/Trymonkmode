@@ -177,6 +177,14 @@ export function UserProfileModal() {
     updateUserProfile({ reminderLeadMinutes: minutes });
   };
 
+  const restDays = user.restDays || [];
+  const handleToggleRestDay = (dow: number) => {
+    const next = restDays.includes(dow)
+      ? restDays.filter((d) => d !== dow)
+      : [...restDays, dow].slice(0, 2);
+    updateUserProfile({ restDays: next });
+  };
+
   const handleToggleSound = (enabled: boolean) => {
     setSoundEffects(enabled);
     updateUserProfile({ soundEffects: enabled });
@@ -594,6 +602,38 @@ export function UserProfileModal() {
                   onChange={(e) => handleToggleEmail(e.target.checked)}
                   className="w-4 h-4 accent-[#0052FF] cursor-pointer"
                 />
+              </div>
+
+              {/* Rest days for streaks */}
+              <div className="p-3.5 rounded-2xl bg-muted/60 border border-border space-y-2.5">
+                <div>
+                  <h4 className="text-xs font-bold text-foreground">Rest days</h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pick up to 2 days a week off. Skipping them won&apos;t break your streak.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label, dow) => {
+                    const selected = restDays.includes(dow);
+                    const atLimit = !selected && restDays.length >= 2;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={atLimit}
+                        onClick={() => handleToggleRestDay(dow)}
+                        aria-pressed={selected}
+                        className={`h-8 px-3 rounded-xl text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          selected
+                            ? "bg-sky-500 text-white"
+                            : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Sound Effects */}

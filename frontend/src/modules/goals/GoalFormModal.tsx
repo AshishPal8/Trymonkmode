@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/ui/select";
 import { CustomDatePicker } from "@/components/ui/date-picker";
+import { addDaysTo, getTodayDateString } from "@/lib/utils";
 import { GOAL_CATEGORIES, GOAL_COLORS, GOAL_KINDS } from "./goalHelpers";
+import { GoalTemplatePicker } from "./GoalTemplatePicker";
+import type { GoalTemplate } from "./goalTemplates";
 
 interface GoalFormModalProps {
   isOpen: boolean;
@@ -43,7 +46,20 @@ function GoalForm({ goal, onClose, onSaved }: Omit<GoalFormModalProps, "isOpen">
     String(goal?.targetFocusMinutes ? Math.round(goal.targetFocusMinutes / 60) : 20),
   );
   const [milestonesText, setMilestonesText] = useState("");
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const applyTemplate = (t: GoalTemplate) => {
+    setTemplateId(t.id);
+    setTitle(t.title);
+    setWhy(t.why);
+    setKind(t.kind);
+    setCategory(t.category);
+    setColor(t.color);
+    setDeadline(addDaysTo(getTodayDateString(), t.days));
+    setMilestonesText(t.milestones.join("\n"));
+    if (t.kind === "focus") setTargetHours("100");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,6 +112,8 @@ function GoalForm({ goal, onClose, onSaved }: Omit<GoalFormModalProps, "isOpen">
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+        {!isEdit && <GoalTemplatePicker selectedId={templateId} onPick={applyTemplate} />}
+
         <div>
           <label className={label}>What do you want to achieve? *</label>
           <Input
@@ -197,7 +215,7 @@ function GoalForm({ goal, onClose, onSaved }: Omit<GoalFormModalProps, "isOpen">
           <div>
             <label className={label}>Milestones (one per line, optional)</label>
             <textarea
-              rows={3}
+              rows={Math.min(8, Math.max(3, milestonesText.split("\n").length))}
               placeholder={"Arrays & strings\nTrees & graphs\nDynamic programming"}
               value={milestonesText}
               onChange={(e) => setMilestonesText(e.target.value)}

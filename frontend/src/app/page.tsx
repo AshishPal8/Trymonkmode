@@ -22,6 +22,9 @@ import { NotesView } from "@/modules/notes/NotesView";
 import { BookmarksView } from "@/modules/bookmarks/BookmarksView";
 import { FinanceView } from "@/modules/finance/FinanceView";
 import { AnalyticsView } from "@/modules/analytics/AnalyticsView";
+import { LeaderboardView } from "@/modules/leaderboard/LeaderboardView";
+import { ChallengesView } from "@/modules/challenges/ChallengesView";
+import { InviteJoinPrompt } from "@/modules/leaderboard/components/InviteJoinPrompt";
 import { AdminView } from "@/modules/admin/AdminView";
 
 import { requestAndRegisterFCMToken } from "@/lib/firebase";
@@ -32,7 +35,7 @@ import { soundFX } from "@/lib/utils";
 import { toast } from "@/components/ui/toast";
 import { Bell, X as CloseIcon } from "lucide-react";
 
-const NOTIFICATION_MODULES = new Set<string>(["tasks", "calendar", "habits"]);
+const NOTIFICATION_MODULES = new Set<string>(["tasks", "calendar", "habits", "leaderboard", "challenges"]);
 
 function MainAppShell() {
   const {
@@ -187,6 +190,10 @@ function MainAppShell() {
         return <FinanceView />;
       case "analytics":
         return <AnalyticsView />;
+      case "leaderboard":
+        return <LeaderboardView />;
+      case "challenges":
+        return <ChallengesView />;
       case "admin":
         return <AdminView />;
       default:
@@ -198,6 +205,7 @@ function MainAppShell() {
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)] transition-colors">
       {/* 1. Desktop Sidebar with 3-Dot Menus & Top Favorites */}
       <DesktopSidebar />
+      <InviteJoinPrompt />
 
       {/* 2. Main Content Area */}
       <div className="flex flex-col flex-1 h-full min-w-0 overflow-y-auto">
