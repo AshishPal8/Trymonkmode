@@ -150,7 +150,15 @@ Open the **Matrix Tab** in your navigation bar. Categorize your daily tasks into
   },
 ];
 
-export async function ensureBlogsSeeded() {
+let seeding: Promise<void> | null = null;
+
+/** Seeds the default articles once per server start (it used to run on every request). */
+export function ensureBlogsSeeded(): Promise<void> {
+  seeding ??= seedBlogs();
+  return seeding;
+}
+
+async function seedBlogs() {
   try {
     const existing = await db.select().from(blogs).limit(1);
     if (existing.length === 0) {
@@ -228,7 +236,20 @@ export async function getPublicBlogsService(query: QueryBlogInput) {
   };
 }
 
-export async function getBlogBySlugService(slug: string) {
+/** One view per visitor per article per hour, so refreshes and bots don't inflate it. */
+const recentViews = new Map<string, number>();
+const VIEW_WINDOW_MS = 60 * 60 * 1000;
+
+function isNewView(blogId: number, visitor: string): boolean {
+  const key = `${blogId}:${visitor}`;
+  const now = Date.now();
+  if ((recentViews.get(key) ?? 0) > now) return false;
+  if (recentViews.size > 50_000) recentViews.clear(); // keep memory bounded
+  recentViews.set(key, now + VIEW_WINDOW_MS);
+  return true;
+}
+
+export async function getBlogBySlugService(slug: string, visitor = "anon") {
   await ensureBlogsSeeded();
 
   const [found] = await db
@@ -247,11 +268,12 @@ export async function getBlogBySlugService(slug: string) {
     throw new NotFoundError("Article not found or is currently private.");
   }
 
-  // Increment view count asynchronously
-  db.update(blogs)
-    .set({ viewCount: sql`${blogs.viewCount} + 1` })
-    .where(eq(blogs.id, found.id))
-    .catch((err) => console.error("Error incrementing view count:", err));
+  if (isNewView(found.id, visitor)) {
+    db.update(blogs)
+      .set({ viewCount: sql`${blogs.viewCount} + 1` })
+      .where(eq(blogs.id, found.id))
+      .catch((err) => console.error("Error incrementing view count:", err));
+  }
 
   return found;
 }

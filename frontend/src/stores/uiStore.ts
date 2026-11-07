@@ -223,13 +223,31 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
         }
 
         case "analytics": {
-          await useAnalyticsStore.getState().fetchAnalytics();
+          await useAnalyticsStore.getState().ensureAnalytics();
           break;
         }
 
-        case "tasks":
-        case "matrix":
+        // One task list serves Tasks, Matrix, Dashboard and Goals: always
+        // load it under the "tasks" key so it's fetched once.
+        case "matrix": {
+          await get().loadModuleData("tasks");
+          break;
+        }
+
         case "dashboard": {
+          // The dashboard shows tasks, habits, events, today's focus and goals.
+          await Promise.all([
+            get().loadModuleData("tasks"),
+            useAnalyticsStore.getState().ensureAnalytics(),
+            get().loadModuleData("habits"),
+            get().loadModuleData("calendar"),
+            get().loadModuleData("pomodoro"),
+            get().loadModuleData("goals"),
+          ]);
+          break;
+        }
+
+        case "tasks": {
           const tasksRes = await tasksApi.getTasks().catch(() => null);
           if (tasksRes?.data?.data) {
             useTaskStore.getState().setTasks(
@@ -252,16 +270,6 @@ export const useUIStore = create<UIStoreState>((set, get) => ({
                 milestoneId: t.milestoneId ? String(t.milestoneId) : null,
               })),
             );
-          }
-          if (moduleId === "dashboard") {
-            // The dashboard shows habits, events and today's focus too.
-            await Promise.all([
-              useAnalyticsStore.getState().fetchAnalytics(),
-              get().loadModuleData("habits"),
-              get().loadModuleData("calendar"),
-              get().loadModuleData("pomodoro"),
-              get().loadModuleData("goals"),
-            ]);
           }
           break;
         }

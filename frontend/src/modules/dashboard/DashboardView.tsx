@@ -31,12 +31,13 @@ export function DashboardView() {
     setActiveModule,
     openQuickAdd,
     fetchAnalytics,
+    ensureAnalytics,
   } = useApp();
 
-  // Refresh the numbers every time the dashboard opens (data loads are cached).
+  // Fresh numbers when the dashboard opens (skipped if they just loaded).
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    ensureAnalytics();
+  }, [ensureAnalytics]);
 
   const todayStr = getTodayDateString();
   const [activeTab, setActiveTab] = useState<"overview" | "analytics">(

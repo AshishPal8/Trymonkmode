@@ -43,7 +43,13 @@ export interface UserStoreState {
   toggleTheme: () => void;
   login: (user?: string, pass?: string) => boolean;
   logout: () => void;
-  syncWithBackend: () => Promise<void>;
+  /**
+   * Loads the signed-in user from the server. Calls made while one is running
+   * share it. With `ifStale`, skipped if it ran in the last minute (public pages).
+   */
+  syncWithBackend: (options?: { ifStale?: boolean }) => Promise<void>;
+  /** Internal: the actual /auth/me request. Use syncWithBackend. */
+  loadProfileFromServer: () => Promise<void>;
 
   user: UserProfile;
   setUser: (user: UserProfile) => void;
@@ -51,6 +57,14 @@ export interface UserStoreState {
   toggleFavorite: (moduleId: ActiveModuleId) => void;
   addXP: (amount: number) => void;
 }
+
+/** One /auth/me at a time, and public pages reuse a result from the last minute. */
+let syncInFlight: Promise<void> | null = null;
+let lastSyncAt = 0;
+const SYNC_FRESH_MS = 60_000;
+
+/** Set on logout, so /app goes to the plain home page instead of opening login again. */
+export const LOGGED_OUT_FLAG = "trymonk_logged_out";
 
 export const useUserStore = create<UserStoreState>()(
   persist(
@@ -113,6 +127,7 @@ export const useUserStore = create<UserStoreState>()(
           localStorage.removeItem("trymonk_access_token");
           localStorage.removeItem("trymonk_refresh_token");
           localStorage.removeItem("trymonk_user_store");
+          sessionStorage.setItem(LOGGED_OUT_FLAG, "1");
         }
 
         await unregisterFCMDeviceToken();
@@ -204,7 +219,18 @@ export const useUserStore = create<UserStoreState>()(
         });
       },
 
-      syncWithBackend: async () => {
+      syncWithBackend: ({ ifStale = false } = {}) => {
+        if (ifStale && Date.now() - lastSyncAt < SYNC_FRESH_MS) return Promise.resolve();
+        syncInFlight ??= get()
+          .loadProfileFromServer()
+          .finally(() => {
+            syncInFlight = null;
+            lastSyncAt = Date.now();
+          });
+        return syncInFlight;
+      },
+
+      loadProfileFromServer: async () => {
         try {
           const profileRes = await authApi.getMe().catch(() => null);
           if (profileRes?.data?.data) {
@@ -279,6 +305,10 @@ export const useUserStore = create<UserStoreState>()(
     {
       name: "trymonk_user_store",
       storage: createEncryptedStorage(),
+      // "Checking sign-in" always starts fresh on page load: a saved `false`
+      // made /app send people away before their session was checked.
+      partialize: (state) =>
+        Object.fromEntries(Object.entries(state).filter(([key]) => key !== "isCheckingAuth")) as Partial<UserStoreState>,
     },
   ),
 );

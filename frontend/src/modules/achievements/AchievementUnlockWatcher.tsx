@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
  */
 export function AchievementUnlockWatcher() {
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
-  const syncXp = useUserStore((s) => s.syncWithBackend);
+  const addXP = useUserStore((s) => s.addXP);
   const [queue, setQueue] = useState<UnlockedBadge[]>([]);
   const isChecking = useRef(false);
   const lastCheckAt = useRef(0);
@@ -31,14 +31,14 @@ export function AchievementUnlockWatcher() {
       if (badges.length) {
         setQueue(badges);
         triggerCelebrationConfetti();
-        syncXp(); // badge XP was added on the server
+        addXP(badges.reduce((sum, b) => sum + b.xpReward, 0)); // the server already added it
       }
     } catch {
       // try again on the next refresh
     } finally {
       isChecking.current = false;
     }
-  }, [syncXp]);
+  }, [addXP]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

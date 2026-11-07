@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { BadRequestError } from "./errors.js";
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
@@ -22,3 +22,17 @@ export function idParam(req: Request, name = "id"): number {
 
 /** The signed-in user's id (routes behind `authenticate`). */
 export const currentUserId = (req: Request): number => req.user!.userId;
+
+/**
+ * Lets browsers and the CDN (Vercel) reuse a public response for a while,
+ * so repeat visits don't reach the server. Only for data that is the same for everyone.
+ */
+export const publicCache =
+  (browserSeconds: number, cdnSeconds: number): RequestHandler =>
+  (_req, res, next) => {
+    res.set(
+      "Cache-Control",
+      `public, max-age=${browserSeconds}, s-maxage=${cdnSeconds}, stale-while-revalidate=${cdnSeconds * 2}`,
+    );
+    next();
+  };

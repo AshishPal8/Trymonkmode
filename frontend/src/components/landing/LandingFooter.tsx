@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { appIcon } from "@/assets";
-import { Shield, FileText, Lock, ExternalLink, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 
 export function LandingFooter() {
   return (
@@ -40,11 +40,6 @@ export function LandingFooter() {
               habits, sprint matrix, and daily reflections. Built for ambitious
               builders and students.
             </p>
-
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>All Systems Operational</span>
-            </div>
           </div>
 
           {/* Column 3: Features & Tools */}
@@ -90,34 +85,50 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="/privacy"
-                  className="hover:text-[#0052FF] text-slate-300 transition flex items-center gap-1.5"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
                 >
-                  <Shield className="w-3.5 h-3.5 text-[#0052FF]" />
                   <span>Privacy Policy</span>
                 </Link>
               </li>
               <li>
                 <Link
                   href="/terms"
-                  className="hover:text-[#0052FF] text-slate-300 transition flex items-center gap-1.5"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
                 >
-                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Terms of Service</span>
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/security"
-                  className="hover:text-[#0052FF] text-slate-300 transition flex items-center gap-1.5"
+                  href="/refund"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
                 >
-                  <Lock className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Security & Encryption</span>
+                  <span>Refund & Cancellation</span>
                 </Link>
               </li>
               <li>
-                <span className="text-slate-500 text-[11px] block pt-1">
-                  100% User Data Ownership
-                </span>
+                <Link
+                  href="/security"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
+                >
+                  <span>Security</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/pricing"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
+                >
+                  <span>Pricing</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
+                >
+                  <span>Contact</span>
+                </Link>
               </li>
             </ul>
           </div>
@@ -133,10 +144,9 @@ export function LandingFooter() {
                   href="https://instagram.com/trymonkmode.in"
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:text-[#0052FF] text-slate-300 transition flex items-center gap-1.5"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
                 >
                   <span>Instagram (@trymonkmode.in)</span>
-                  <ExternalLink className="w-3 h-3 text-slate-500" />
                 </a>
               </li>
               {/* Currently commented until live
@@ -145,16 +155,15 @@ export function LandingFooter() {
                   href="https://x.com/trymonkmode"
                   target="_blank"
                   rel="noreferrer"
-                  className="hover:text-[#0052FF] text-slate-300 transition flex items-center gap-1.5"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
                 >
                   <span>Twitter / X (@trymonkmode)</span>
-                  <ExternalLink className="w-3 h-3 text-slate-500" />
                 </a>
               </li>
               <li>
                 <a
                   href="mailto:support@trymonkmode.in"
-                  className="hover:text-[#0052FF] text-slate-300 transition flex items-center gap-1.5"
+                  className="hover:text-[#0052FF] text-slate-300 transition"
                 >
                   <span>support@trymonkmode.in</span>
                 </a>

@@ -8,11 +8,17 @@ import { LandingTasks } from "./LandingTasks";
 import { LandingJournal } from "./LandingJournal";
 import { LandingFinance } from "./LandingFinance";
 import { LandingBlogs } from "./LandingBlogs";
+import { LandingPricing } from "./LandingPricing";
 import { LandingFooter } from "./LandingFooter";
 
-export function LandingPage() {
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+interface LandingPageProps {
+  /** Open the login / sign-up form right away (e.g. from an invite link). */
+  initialAuthMode?: "login" | "signup" | null;
+}
+
+export function LandingPage({ initialAuthMode = null }: LandingPageProps) {
+  const [showAuthModal, setShowAuthModal] = useState(!!initialAuthMode);
+  const [authMode, setAuthMode] = useState<"login" | "signup">(initialAuthMode ?? "login");
 
   const openAuth = (mode: "login" | "signup") => {
     setAuthMode(mode);
@@ -41,7 +47,10 @@ export function LandingPage() {
       {/* 5. Finance Section */}
       <LandingFinance onOpenAuth={openAuth} />
 
-      {/* 6. Blog Articles Section */}
+      {/* 6. Pricing */}
+      <LandingPricing onOpenAuth={openAuth} />
+
+      {/* 7. Blog Articles Section */}
       <LandingBlogs />
 
       {/* 7. Footer */}

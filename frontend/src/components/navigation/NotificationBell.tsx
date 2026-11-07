@@ -36,6 +36,7 @@ export function NotificationBell() {
   const [isLoading, setIsLoading] = React.useState(false);
   const lastFetchRef = React.useRef(0);
 
+  const initialLoadAt = React.useRef(0);
   const load = React.useCallback(async (before?: number) => {
     setIsLoading(true);
     try {
@@ -54,9 +55,11 @@ export function NotificationBell() {
   }, []);
 
   React.useEffect(() => {
-    // Initial load is async (state is set after the request resolves).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
+    // Initial load (skipped if one just started: React may run effects twice in development).
+    if (Date.now() - initialLoadAt.current > 3000) {
+      initialLoadAt.current = Date.now();
+      load();
+    }
 
     const onRefresh = () => load();
     const onFocus = () => {

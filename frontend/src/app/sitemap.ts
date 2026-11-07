@@ -6,37 +6,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://trymonkmode.in';
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+  const page = (path: string, priority: number, changeFrequency: 'daily' | 'monthly') => ({
+    url: `${baseUrl}${path}`,
+    lastModified: new Date(),
+    changeFrequency,
+    priority,
+  });
+
   const staticRoutes: MetadataRoute.Sitemap = [
-    {
-      url: `${baseUrl}`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/security`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
+    page('', 1.0, 'daily'),
+    page('/pricing', 0.9, 'monthly'),
+    page('/blog', 0.9, 'daily'),
+    page('/privacy', 0.6, 'monthly'),
+    page('/terms', 0.6, 'monthly'),
+    page('/refund', 0.6, 'monthly'),
+    page('/security', 0.6, 'monthly'),
+    page('/contact', 0.6, 'monthly'),
   ];
 
   try {

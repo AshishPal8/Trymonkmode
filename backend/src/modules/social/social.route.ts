@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.js";
-import { socialLimiter } from "../../middlewares/rateLimit.middleware.js";
+import { heavyLimiter, socialLimiter } from "../../middlewares/rateLimit.middleware.js";
 import { sendResponse } from "../../utils/apiResponse.js";
 import { asyncHandler, currentUserId, idParam } from "../../utils/http.js";
 import {
@@ -136,6 +136,7 @@ router.delete(
 
 router.get(
   "/leaderboard",
+  heavyLimiter,
   validate({ query: leaderboardQuerySchema }),
   asyncHandler(async (req, res) => {
     const { sort, page, limit } = req.query as unknown as { sort: LeaderboardSort; page: number; limit: number };

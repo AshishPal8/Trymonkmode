@@ -86,7 +86,8 @@ export default function RootLayout({
                 }
                 // Prevent dragging of any images globally
                 document.addEventListener('dragstart', function(e) {
-                  if (e.target && ((e.target as any).tagName === 'IMG' || (e.target as any).tagName === 'PICTURE' || (e.target as any).tagName === 'SVG' || (e.target as any).closest('img'))) {
+                  var el = e.target;
+                  if (el && (el.tagName === 'IMG' || el.tagName === 'PICTURE' || el.tagName === 'SVG' || (el.closest && el.closest('img')))) {
                     e.preventDefault();
                     return false;
                   }

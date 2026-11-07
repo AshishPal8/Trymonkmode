@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { ToastContainer, toast } from "@/components/ui/toast";
-import { pagesApi, authApi } from "@/lib/api";
-import { getTodayDateString, triggerCelebrationConfetti } from "@/lib/utils";
+import { ToastContainer } from "@/components/ui/toast";
+import { pagesApi } from "@/lib/api";
+import { completeGoogleSignIn } from "@/lib/googleSignIn";
+import { getTodayDateString } from "@/lib/utils";
 import { DailyQuest } from "@/lib/types";
 import { captureInviteFromUrl } from "@/lib/pendingInvite";
 
@@ -108,60 +109,23 @@ export function useApp() {
   };
 }
 
+let appStarted = false;
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const userStore = useUserStore();
   const uiStore = useUIStore();
 
   useEffect(() => {
+    // Once per page load (React may run effects twice in development).
+    if (appStarted) return;
+    appStarted = true;
+
     userStore.setTheme(userStore.theme, false);
     // A friend's invite link (?invite=CODE) is kept until the user is signed in.
     captureInviteFromUrl();
 
-    // After Google sign-in the backend sends us back with a one-time `code`.
-    // Swap it for tokens with a POST (tokens are never put in the URL).
-    let signIn: Promise<unknown> = Promise.resolve();
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const googleAuth = urlParams.get("google_auth");
-      const code = urlParams.get("code");
-      const authError = urlParams.get("error");
-
-      if (googleAuth || code || authError) {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
-      }
-
-      if (googleAuth === "success" && code) {
-        signIn = authApi
-          .exchangeGoogleCode(code)
-          .then((res) => {
-            const data = res?.data?.data;
-            if (data?.accessToken)
-              localStorage.setItem("trymonk_access_token", data.accessToken);
-            if (data?.refreshToken)
-              localStorage.setItem("trymonk_refresh_token", data.refreshToken);
-            triggerCelebrationConfetti();
-          })
-          .catch(() => {
-            toast.error("Sign-in link expired. Please sign in again.");
-          });
-      } else if (googleAuth === "success" && urlParams.get("token")) {
-        const token = urlParams.get("token")!;
-        const refresh = urlParams.get("refresh");
-        localStorage.setItem("trymonk_access_token", token);
-        if (refresh && refresh.length > 20)
-          localStorage.setItem("trymonk_refresh_token", refresh);
-        triggerCelebrationConfetti();
-      } else if (authError) {
-        toast.error("Google sign-in didn't go through. Please try again.");
-      }
-    }
-
     // Sync the session on every load (after the sign-in swap, if any).
-    signIn
+    completeGoogleSignIn()
       .then(() => userStore.syncWithBackend())
       .then(() => {
         const isAuth = useUserStore.getState().isAuthenticated;

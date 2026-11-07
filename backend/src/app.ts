@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import { requestLogger } from "./middlewares/logger.middleware.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
-import { apiLimiter, authLimiter } from "./middlewares/rateLimit.middleware.js";
+import { apiLimiter, authLimiter, edgeLimiter, heavyLimiter } from "./middlewares/rateLimit.middleware.js";
 import { NotFoundError } from "./utils/errors.js";
 import { sendResponse } from "./utils/apiResponse.js";
 import { HttpStatus } from "./utils/httpStatus.js";
@@ -94,7 +94,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.use("/api", apiLimiter);
+app.use("/api", edgeLimiter, apiLimiter);
 
 app.get("/api/google", authLimiter, googleLogin);
 app.get("/api/google/callback", authLimiter, googleCallback);
@@ -111,16 +111,16 @@ app.use("/api/v1/goals", goalRoutes);
 app.use("/api/v1/finance", financeRoutes);
 app.use("/api/v1/notes", notesRoutes);
 app.use("/api/v1/bookmarks", bookmarkRoutes);
-app.use("/api/v1/analytics", analyticsRoutes);
+app.use("/api/v1/analytics", heavyLimiter, analyticsRoutes);
 app.use("/api/v1/blogs", blogsRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/settings", settingsRoutes);
 app.use("/api/v1/focus", focusRoutes);
-app.use("/api/v1/streak", streakRoutes);
+app.use("/api/v1/streak", heavyLimiter, streakRoutes);
 app.use("/api/v1/social", socialRoutes);
 app.use("/api/v1/challenges", challengeRoutes);
-app.use("/api/v1/achievements", achievementRoutes);
+app.use("/api/v1/achievements", heavyLimiter, achievementRoutes);
 app.use("/api/v1/groups", groupRoutes);
 
 app.use((_req, _res, next) => {

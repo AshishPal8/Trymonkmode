@@ -190,8 +190,8 @@ export async function deliverPush(
   const refId = data.taskId || data.eventId || data.habitId || "";
   const tag = refId ? `${type}-${refId}` : type;
   const link = data.moduleId
-    ? `${env.FRONTEND_URL}/?module=${encodeURIComponent(data.moduleId)}`
-    : env.FRONTEND_URL;
+    ? `${env.FRONTEND_URL}/app?module=${encodeURIComponent(data.moduleId)}`
+    : `${env.FRONTEND_URL}/app`;
   // Only events need to stay on screen until dismissed.
   const requireInteraction = type === "calendar_event";
 

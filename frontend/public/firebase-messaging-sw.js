@@ -86,7 +86,7 @@ self.addEventListener("notificationclick", function (event) {
 
   // The API uses the app's login cookies, so the open app (or a newly opened
   // one) makes the actual Done/Snooze request.
-  let url = moduleId ? "/?module=" + encodeURIComponent(moduleId) : "/";
+  let url = moduleId ? "/app?module=" + encodeURIComponent(moduleId) : "/app";
   if (isAction) {
     url +=
       (url.includes("?") ? "&" : "?") +

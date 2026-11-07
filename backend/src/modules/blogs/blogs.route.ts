@@ -11,6 +11,8 @@ import {
 import { authenticate } from "../../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../middlewares/rbac.middleware.js";
 import { validate } from "../../middlewares/validate.js";
+import { publicReadLimiter } from "../../middlewares/rateLimit.middleware.js";
+import { publicCache } from "../../utils/http.js";
 import {
   createBlogSchema,
   updateBlogSchema,
@@ -55,7 +57,8 @@ router.delete(
 );
 
 // 2. Public Routes
-router.get("/", validate({ query: queryBlogSchema }), getPublicBlogsHandler);
-router.get("/:slug", getBlogBySlugHandler);
+// Same for every visitor: limited per IP and cached by browsers and the CDN.
+router.get("/", publicReadLimiter, publicCache(60, 300), validate({ query: queryBlogSchema }), getPublicBlogsHandler);
+router.get("/:slug", publicReadLimiter, publicCache(60, 300), getBlogBySlugHandler);
 
 export default router;

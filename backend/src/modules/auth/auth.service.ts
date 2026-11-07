@@ -32,62 +32,55 @@ export interface GoogleProfile {
   picture?: string;
 }
 
-export async function getFullUserProfile(userId: number) {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  if (!user) return null;
-
-  let [settings] = await db
-    .select()
-    .from(userSettings)
-    .where(eq(userSettings.userId, userId))
-    .limit(1);
-  if (!settings) {
-    const [newSettings] = await db
-      .insert(userSettings)
-      .values({ userId: user.id })
-      .returning();
-    settings = newSettings;
-  }
-
-  let [plan] = await db
-    .select()
-    .from(userPlans)
-    .where(eq(userPlans.userId, userId))
-    .limit(1);
-  if (!plan) {
-    const isSuperadmin = user.role === "superadmin";
-    const [newPlan] = await db
+/** Settings and plan rows are created on first use; this makes sure they exist. */
+async function ensureSettingsAndPlan(userId: number, role: string) {
+  await Promise.all([
+    db.insert(userSettings).values({ userId }).onConflictDoNothing(),
+    db
       .insert(userPlans)
-      .values({
-        userId: user.id,
-        planTier: isSuperadmin ? "lifetime" : "free",
-        planStatus: "active",
-      })
-      .returning();
-    plan = newPlan;
+      .values({ userId, planTier: role === "superadmin" ? "lifetime" : "free", planStatus: "active" })
+      .onConflictDoNothing(),
+  ]);
+}
+
+/** The signed-in user's profile, settings, plan and favourites: 2 parallel queries. */
+export async function getFullUserProfile(userId: number): Promise<ReturnType<typeof shapeProfile> | null> {
+  const [[row], favRows] = await Promise.all([
+    db
+      .select({ user: users, settings: userSettings, plan: userPlans })
+      .from(users)
+      .leftJoin(userSettings, eq(userSettings.userId, users.id))
+      .leftJoin(userPlans, eq(userPlans.userId, users.id))
+      .where(eq(users.id, userId))
+      .limit(1),
+    db
+      .select({ pageKey: userFavorites.pageKey })
+      .from(userFavorites)
+      .where(eq(userFavorites.userId, userId))
+      .orderBy(userFavorites.orderIndex),
+  ]);
+  if (!row) return null;
+
+  // Rare (accounts from before these tables): create them, then read again.
+  if (!row.settings || !row.plan) {
+    await ensureSettingsAndPlan(userId, row.user.role);
+    return getFullUserProfile(userId);
   }
+  return shapeProfile(row.user, row.settings, row.plan, favRows.map((f) => f.pageKey));
+}
 
-  const favRows = await db
-    .select()
-    .from(userFavorites)
-    .where(eq(userFavorites.userId, userId))
-    .orderBy(userFavorites.orderIndex);
-
-  const favorites = favRows.map((f) => f.pageKey);
-
+function shapeProfile(
+  user: typeof users.$inferSelect,
+  settings: typeof userSettings.$inferSelect,
+  plan: typeof userPlans.$inferSelect,
+  favorites: string[],
+) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     username: user.username,
-    avatar:
-      user.avatar && !user.avatar.includes("images.unsplash.com")
-        ? user.avatar
-        : null,
+    avatar: user.avatar && !user.avatar.includes("images.unsplash.com") ? user.avatar : null,
     title: user.title,
     bio: user.bio,
     role: user.role,

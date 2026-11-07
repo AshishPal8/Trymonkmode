@@ -88,7 +88,8 @@ export const googleCallback = async (
   };
   const target = safeRedirect(parseState(state).redirect);
   const fail = () => {
-    const base = target?.url || `${env.FRONTEND_URL}/`;
+    // Web: back to the home page, which shows the error and opens login again.
+    const base = target?.kind === "app" ? target.url : `${env.FRONTEND_URL}/`;
     res.redirect(withParams(base, { error: "google_auth_failed" }));
   };
 
@@ -129,7 +130,7 @@ export const googleCallback = async (
 
     const loginCode = await createLoginCode(result.refreshToken);
     res.redirect(
-      withParams(target?.url || `${env.FRONTEND_URL}/`, {
+      withParams(target?.url || `${env.FRONTEND_URL}/app`, {
         google_auth: "success",
         code: loginCode,
       }),

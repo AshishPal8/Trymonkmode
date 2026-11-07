@@ -48,7 +48,8 @@ export function AuthModal({
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    const redirect = typeof window !== "undefined" ? window.location.origin : "";
+    // After sign-in, Google sends the user straight into the app.
+    const redirect = typeof window !== "undefined" ? `${window.location.origin}/app` : "";
     window.location.href = `/api/google?redirect=${encodeURIComponent(redirect)}`;
   };
 

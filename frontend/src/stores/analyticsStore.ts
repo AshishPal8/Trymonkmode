@@ -14,17 +14,25 @@ export interface AnalyticsStoreState {
    * one request runs at a time.
    */
   fetchAnalytics: () => Promise<void>;
+  /** For opening a page: skipped if the numbers loaded in the last 30 seconds. */
+  ensureAnalytics: () => Promise<void>;
 }
+
+const FRESH_MS = 30_000;
+let loadedAt = 0;
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let inFlight: Promise<void> | null = null;
 let waiting: Promise<void> | null = null;
 
-export const useAnalyticsStore = create<AnalyticsStoreState>((set) => {
+export const useAnalyticsStore = create<AnalyticsStoreState>((set, get) => {
   const load = async () => {
     try {
       const res = await analyticsApi.getAnalytics();
-      if (res?.data?.data) set({ analyticsData: res.data.data });
+      if (res?.data?.data) {
+        set({ analyticsData: res.data.data });
+        loadedAt = Date.now();
+      }
     } catch {
       // keep the last numbers
     }
@@ -49,6 +57,12 @@ export const useAnalyticsStore = create<AnalyticsStoreState>((set) => {
         }, MERGE_WINDOW_MS);
       });
       return waiting;
+    },
+
+    ensureAnalytics: () => {
+      if (waiting || inFlight) return waiting ?? inFlight!;
+      if (Date.now() - loadedAt < FRESH_MS) return Promise.resolve();
+      return get().fetchAnalytics();
     },
   };
 });

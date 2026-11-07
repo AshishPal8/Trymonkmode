@@ -57,23 +57,41 @@ const toEntry = (r: RankedRow) => ({
   stats: { xp: r.xp, level: r.level, streak: r.streak, weekFocusMinutes: r.week_focus_minutes },
 });
 
-export async function getLeaderboardService(me: number, sort: LeaderboardSort, page: number, limit: number) {
-  const offset = (page - 1) * limit;
-  const ranked = rankedUsers(sort);
+/**
+ * A page of the ranking is the same for everyone, so it's kept for a minute
+ * (ranks barely move that fast). Only "your rank" is read per user.
+ */
+const PAGE_CACHE_MS = 60_000;
+const pageCache = new Map<string, { rows: RankedRow[]; until: number }>();
 
+async function rankedPage(sort: LeaderboardSort, page: number, limit: number): Promise<RankedRow[]> {
+  const key = `${sort}:${page}:${limit}`;
+  const hit = pageCache.get(key);
+  if (hit && hit.until > Date.now()) return hit.rows;
+
+  const offset = (page - 1) * limit;
+  const { rows } = await db.execute<RankedRow>(
+    sql`select * from (${rankedUsers(sort)}) r order by rank limit ${limit} offset ${offset}`,
+  );
+  if (pageCache.size > 500) pageCache.clear();
+  pageCache.set(key, { rows, until: Date.now() + PAGE_CACHE_MS });
+  return rows;
+}
+
+export async function getLeaderboardService(me: number, sort: LeaderboardSort, page: number, limit: number) {
   const [pageRows, myRows] = await Promise.all([
-    db.execute<RankedRow>(sql`select * from (${ranked}) r order by rank limit ${limit} offset ${offset}`),
-    db.execute<RankedRow>(sql`select * from (${ranked}) r where id = ${me}`),
+    rankedPage(sort, page, limit),
+    db.execute<RankedRow>(sql`select * from (${rankedUsers(sort)}) r where id = ${me}`),
   ]);
 
-  const total = pageRows.rows[0]?.total ?? myRows.rows[0]?.total ?? 0;
+  const total = pageRows[0]?.total ?? myRows.rows[0]?.total ?? 0;
   return {
     sort,
     page,
     limit,
     total,
     totalPages: Math.max(1, Math.ceil(total / limit)),
-    items: pageRows.rows.map(toEntry),
+    items: pageRows.map(toEntry),
     /** Null when the user keeps their stats private. */
     me: myRows.rows[0] ? toEntry(myRows.rows[0]) : null,
   };

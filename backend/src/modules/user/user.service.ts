@@ -13,6 +13,7 @@ import type {
   UpdateProfileInput,
   UpdateUserRoleTierInput,
 } from "./user.schema.js";
+import { forgetAuthUser } from "../../middlewares/authCache.js";
 
 export async function getProfileService(userId: number) {
   const profile = await getFullUserProfile(userId);
@@ -35,6 +36,7 @@ export async function updateProfileService(
   if (Object.keys(userUpdates).length > 0) {
     userUpdates.updatedAt = new Date();
     await db.update(users).set(userUpdates).where(eq(users.id, userId));
+    forgetAuthUser(userId); // name is part of the cached session
   }
 
   const settingsUpdates: any = {};
@@ -92,18 +94,32 @@ export async function updateProfileService(
   return getFullUserProfile(userId);
 }
 
+/** Admin user list: one query, only the columns the table shows (it used to load each full profile). */
 export async function getAllUsersService() {
-  const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
-  const fullProfiles = await Promise.all(
-    allUsers.map((u) => getFullUserProfile(u.id)),
-  );
-  return fullProfiles.filter(Boolean);
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      avatar: users.avatar,
+      role: users.role,
+      planTier: userPlans.planTier,
+      level: users.level,
+      xp: users.xp,
+      streak: users.streak,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .leftJoin(userPlans, eq(userPlans.userId, users.id))
+    .orderBy(desc(users.createdAt));
+  return rows.map((r) => ({ ...r, planTier: r.planTier || "free" }));
 }
 
 export async function updateUserRoleTierService(
   targetUserId: number,
   input: UpdateUserRoleTierInput,
 ) {
+  forgetAuthUser(targetUserId); // role / plan apply on their next request
   if (input.role !== undefined) {
     await db
       .update(users)

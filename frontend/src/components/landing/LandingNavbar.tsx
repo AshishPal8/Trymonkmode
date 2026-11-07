@@ -23,8 +23,12 @@ export function LandingNavbar({
 
   useEffect(() => {
     setMounted(true);
-    syncWithBackend().catch(() => {});
-  }, [syncWithBackend]);
+    // Only for people who have signed in on this browser before: first-time
+    // visitors (most blog and pricing traffic) make no auth calls at all.
+    const mightBeSignedIn = isAuthenticated || !!localStorage.getItem("trymonk_access_token");
+    if (mightBeSignedIn) syncWithBackend({ ifStale: true }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per page
+  }, []);
 
   const handleAuth = (mode: "login" | "signup") => {
     if (onOpenAuth) {
@@ -52,6 +56,9 @@ export function LandingNavbar({
           <Link href="/#finance" className="hover:text-[#10B981] transition">
             Finance & Analytics
           </Link>
+          <Link href="/pricing" className="hover:text-[#0052FF] transition">
+            Pricing
+          </Link>
           <Link href="/blog" className="hover:text-[#0052FF] transition">
             Blog
           </Link>
@@ -61,7 +68,7 @@ export function LandingNavbar({
           {mounted && isAuthenticated ? (
             /* Authenticated User Pill */
             <Link
-              href="/"
+              href="/app"
               className="flex items-center gap-2.5 p-1 pl-2.5 pr-1.5 rounded-full bg-slate-900/5 hover:bg-slate-900/10 border border-slate-200/80 transition-all group"
             >
               <div className="flex items-center gap-2">

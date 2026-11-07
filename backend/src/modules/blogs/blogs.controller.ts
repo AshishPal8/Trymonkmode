@@ -9,6 +9,7 @@ import {
 } from "./blogs.service.js";
 import { sendResponse } from "../../utils/apiResponse.js";
 import { HttpStatus } from "../../utils/httpStatus.js";
+import { clientIp } from "../../middlewares/rateLimit.middleware.js";
 
 export async function getPublicBlogsHandler(
   req: Request,
@@ -34,7 +35,7 @@ export async function getBlogBySlugHandler(
   next: NextFunction,
 ) {
   try {
-    const article = await getBlogBySlugService(req.params.slug as string);
+    const article = await getBlogBySlugService(req.params.slug as string, clientIp(req));
     return sendResponse({
       res,
       statusCode: HttpStatus.OK,
